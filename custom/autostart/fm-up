@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# One-command starter for the whole firstmate stack. Idempotent.
+# Usage: fm-up.sh [--quiet]
+set -u
+QUIET=0
+[ "${1:-}" = "--quiet" ] && QUIET=1
+log() { [ "$QUIET" -eq 1 ] || echo "$@"; }
+
+SESSION=firstmate
+FM="$HOME/firstmate"
+TG="$HOME/fm-telegram"
+
+# Which harness runs as the FIRST MATE (window 0). One line in ~/.fm-primary,
+# e.g. "codex" or "claude --model claude-fable-5-1". Default: codex.
+PRIMARY=$(head -n1 "$HOME/.fm-primary" 2>/dev/null | tr -d '\r')
+[ -n "$PRIMARY" ] || PRIMARY=codex
+
+# Claude-primary kickoff: ultracode is a per-session toggle, so every fresh
+# session gets one bootstrap line (armed only when the primary is claude).
+KICKOFF_MSG="ultracode — Phiên first mate (Fable 5.1). Vai trò captain chốt 3/9/2026: bạn CHỈ preview, lên plan và review/verify kết quả crewmate — KHÔNG tự code trực tiếp. Dispatch crew theo config/crew-dispatch.json (Sol xhigh = task khó; Terra/Luna xhigh = task dễ/vặt). Đọc data/captain.md để nhớ đầy đủ."
+kickoff() {
+  local i
+  for i in $(seq 1 40); do
+    sleep 3
+    tmux capture-pane -t "$SESSION:0" -p 2>/dev/null | grep -q "bypass permissions\|shift+tab" && {
+      sleep 2
+      tmux send-keys -t "$SESSION:0" -l -- "$KICKOFF_MSG"
+      sleep 1
+      tmux send-keys -t "$SESSION:0" Enter
+      return 0
+    }
+  done
+  return 1
+}
+arm_kickoff() { case "$PRIMARY" in claude*) ( kickoff >/dev/null 2>&1 & ) ;; esac; }
+
+# 1) tmux session with the first mate in window 0
+if ! tmux has-session -t "$SESSION" 2>/dev/null; then
+  tmux new-session -d -s "$SESSION" -c "$FM"
+  tmux send-keys -t "$SESSION:0" " $PRIMARY" Enter
+  arm_kickoff
+  log "✅ tmux '$SESSION' started; first mate ($PRIMARY) launching in window 0"
+else
+  # Session alive but window 0 may be a bare shell (agent quit) - relaunch it.
+  cmd=$(tmux display-message -p -t "$SESSION:0" '#{pane_current_command}' 2>/dev/null || echo '?')
+  case "$cmd" in
+    bash|sh|zsh|dash)
+      tmux send-keys -t "$SESSION:0" " cd $FM && $PRIMARY" Enter
+      arm_kickoff
+      log "✅ tmux '$SESSION' running; relaunched first mate ($PRIMARY) in window 0"
+      ;;
+    '?')
+      # Window 0 gone entirely - recreate it at index 0.
+      tmux new-window -d -t "$SESSION:0" -c "$FM" 2>/dev/null || tmux new-window -d -t "$SESSION" -c "$FM"
+      tmux send-keys -t "$SESSION:0" " $PRIMARY" Enter
+      arm_kickoff
+      log "✅ tmux '$SESSION' running; recreated window 0 + first mate ($PRIMARY)"
+      ;;
+    *) log "✅ tmux '$SESSION' already running (window 0: $cmd)" ;;
+  esac
+fi
+
+# 2) telegram bridge, only when telegram.env is really configured
+tg_ready=0
+if [ -f "$TG/telegram.env" ]; then
+  # shellcheck disable=SC1091
+  token=$(. "$TG/telegram.env" 2>/dev/null; printf '%s' "${TG_BOT_TOKEN:-}")
+  chat=$(.  "$TG/telegram.env" 2>/dev/null; printf '%s' "${TG_CHAT_ID:-}")
+  case "$token" in *replace*|"") ;; *) case "$chat" in ""|000000000|0) ;; *) tg_ready=1 ;; esac ;; esac
+fi
+if [ "$tg_ready" -eq 1 ]; then
+  if ! tmux list-windows -t "$SESSION" -F '#W' 2>/dev/null | grep -qx tg-bridge; then
+    tmux new-window -d -t "$SESSION" -n tg-bridge "bash '$TG/fm-tg-bridge.sh'; echo bridge exited; sleep 5"
+    log "✅ telegram bridge started (window tg-bridge)"
+  else
+    log "✅ telegram bridge already running"
+  fi
+else
+  log "⚠️  $TG/telegram.env not configured yet - bridge not started"
+fi
+
+log ""
+log "Attach:  tmux attach -t $SESSION   (detach: Ctrl+B then D)"

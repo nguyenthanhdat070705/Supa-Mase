@@ -1,4 +1,4 @@
-# MayCha Firstmate — bản lưu trữ code tùy chỉnh (`maycha-custom`)
+# MayCha Firstmate — bản lưu trữ code tùy chỉnh (`maycha-custom`, cập nhật 3/9/2026)
 
 Nhánh này lưu **toàn bộ code tùy chỉnh** của hệ firstmate MayCha, tách khỏi bản mirror distro (nhánh `main` và các nhánh `fm/*` trong repo này là mirror của `kunchenguid/firstmate` + fork `omnimaycha/firstmate`).
 
@@ -48,3 +48,11 @@ custom/
 - Login Claude trong WSL hết hạn ~2 tuần/lần: `tmux attach -t firstmate` → `/login`.
 - Bridge tăng offset trước khi inject: tin text fail là mất (chỉ ảnh/file được lưu `inbox/`).
 - Cập nhật distro: nhắn firstmate `/updatefirstmate` (fast-forward an toàn).
+
+## Cập nhật 3/9/2026 — tái cấu trúc hạm đội
+- Primary = **Claude Fable 5.1 + ultracode** (chỉ preview/plan/review); xem `custom/autostart/fm-primary.example`.
+- `custom/autostart/fm-up`: bộ khởi động 1 lệnh (tmux + primary + bridge) kèm **kickoff ultracode** mỗi phiên; chạy từ `firstmate-autostart.vbs` (Windows Startup) lúc logon.
+- `custom/autostart/crontab.txt` + `dp-morning-robot-run.sh`: robot đổ số sáng 08:45 VN (code robot pull từ repo demand-planning-maycha).
+- `custom/firstmate-config/crew-dispatch.json`: Sol xhigh = task khó; Terra xhigh = task dễ; Luna xhigh = việc vặt + fallback.
+- Skills giờ có 8 (thêm doi-soat-so-lieu, railway-deploy-antoan, supabase-schema, ui-chuan-maycha).
+- Bridge v2 + topic-support: trả lời đúng topic forum-group; captain nhắn trong group = toàn quyền.

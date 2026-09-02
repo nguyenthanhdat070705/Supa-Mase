@@ -1,0 +1,37 @@
+{
+  "rules": [
+    {
+      "when": "hard work: complex feature builds, architecture or design decisions, ambiguous investigation, performance/optimization work, security-sensitive changes, anything with wide blast radius, or a task a previous crewmate already failed",
+      "use": {
+        "harness": "codex",
+        "model": "gpt-5.6-sol",
+        "effort": "xhigh"
+      },
+      "why": "Captain 3/9/2026: task khó giao GPT-5.6 Sol, luôn xhigh"
+    },
+    {
+      "when": "everyday well-scoped implementation: a clear feature or fix with a known path, standard CRUD screens, tests for existing behavior, moderate-complexity data scripts",
+      "use": {
+        "harness": "codex",
+        "model": "gpt-5.6-terra",
+        "effort": "xhigh"
+      },
+      "why": "Captain 3/9/2026: task dễ/chuẩn giao GPT-5.6 Terra, luôn xhigh"
+    },
+    {
+      "when": "small mechanical chores: renames, config tweaks, doc updates, simple scripts, keeping a dev server alive, repetitive bounded edits — or when Terra is unavailable or out of quota",
+      "use": {
+        "harness": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "xhigh"
+      },
+      "why": "Captain 3/9/2026: việc vặt giao GPT-5.6 Luna, luôn xhigh; Luna cũng là fallback cho Terra"
+    }
+  ],
+  "default": {
+    "harness": "codex",
+    "model": "gpt-5.6-terra",
+    "effort": "xhigh"
+  },
+  "note": "Captain 3/9/2026: MỌI crewmate phải chạy effort xhigh, không có ngoại lệ. Captain nêu đích danh model nào thì dùng model đó (vẫn xhigh). Primary (first mate) = claude Fable 5.1, vai trò chỉ preview/plan/review — không tự code."
+}
