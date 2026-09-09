@@ -1,0 +1,54 @@
+model = "gpt-6-astra"
+model_reasoning_effort = "max"
+
+[features]
+hooks = true
+
+[projects."/home/nguye/firstmate"]
+trust_level = "trusted"
+
+[projects."/home/nguye"]
+trust_level = "trusted"
+
+[projects."/home/nguye/firstmate/projects/demand-official"]
+trust_level = "trusted"
+
+[projects."/home/nguye/firstmate/projects/ops-x-ch"]
+trust_level = "trusted"
+
+[projects."/home/nguye/firstmate/projects/demand-planning"]
+trust_level = "trusted"
+
+[projects."/home/nguye/.no-mistakes/repos"]
+trust_level = "trusted"
+
+[hooks.state]
+
+[hooks.state."/home/nguye/.codex/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:42ad5843ba79bdd68be42269ac7b513889a767e052dda6c6c28079a53af982ee"
+
+[hooks.state."/home/nguye/.codex/hooks.json:session_start:1:0"]
+trusted_hash = "sha256:2035963d8116b7f9c8418a165ee1d22cc62fa076e6536be410a8534452869541"
+
+[hooks.state."/home/nguye/.codex/hooks.json:session_start:2:0"]
+trusted_hash = "sha256:93fbfa14717a31d18c62d1ba6141b6d7dd89551c24972ca793fadfd6f74baa7f"
+
+[hooks.state."/home/nguye/firstmate/.codex/hooks.json:pre_tool_use:0:0"]
+trusted_hash = "sha256:a920c3e99340de2feaf624585635e43b8541c9fdd5aeb5c0d9dd2479ef05b411"
+
+[hooks.state."/home/nguye/firstmate/.codex/hooks.json:pre_tool_use:0:1"]
+trusted_hash = "sha256:224d6e3538b2957b83e5fd2de2701e9fc09362c01e2a01cb9dbf5755fd9a88fc"
+
+[hooks.state."/home/nguye/firstmate/.codex/hooks.json:session_start:0:0"]
+trusted_hash = "sha256:bd1d74568c7a9e7aa86174b6c1a06d0d9cd8e891ac66159743cf518085cc5c38"
+
+[hooks.state."/home/nguye/firstmate/.codex/hooks.json:stop:0:0"]
+trusted_hash = "sha256:6874d92dd2befa3254ab2c99d3559399f98d3c155f533ce19c9872115504946b"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 3
+"gpt-5.6-sol" = 4
+gpt-6-astra = 1
+
+[notice]
+hide_rate_limit_model_nudge = true

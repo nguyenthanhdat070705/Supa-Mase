@@ -1,1 +1,1 @@
-$HOME/.local/bin/claude --model claude-fable-5-1 --dangerously-skip-permissions
+codex --model gpt-6-astra -c 'model_reasoning_effort="max"' --dangerously-bypass-approvals-and-sandbox
