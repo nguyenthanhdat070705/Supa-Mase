@@ -1,3 +1,6 @@
 35 1 * * * /usr/bin/python3 "/mnt/c/Users/nguye/Downloads/Planning full/scripts/build_sales_mix_precalc.py" >> /home/nguye/firstmate/data/mix-precalc-cron.log 2>&1
 45 1 * * * /home/nguye/firstmate/data/dp-morning-robot/run.sh
 @reboot sleep 180 && /home/nguye/firstmate/data/dp-morning-robot/run.sh --boot
+0 2 * * * cd /home/nguye/.treehouse/demand-planning-9df7b9/3/demand-planning && scripts/run_morning_report_local.sh --send >> /home/nguye/.treehouse/demand-planning-9df7b9/3/demand-planning/.local-morning-report-cron.log 2>&1
+30 2 4 9 * [ "$(/usr/bin/date -u +\%F)" = "2026-09-04" ] && /usr/bin/flock -n /home/nguye/firstmate/state/dp-logistics-alert-first-send.lock /home/nguye/.treehouse/demand-planning-9df7b9/10/demand-planning/scripts/run_logistics_alert_local.sh --date 2026-09-02 --send --manual >> /home/nguye/firstmate/state/dp-logistics-alert-first-send.log 2>&1
+30 1 * * 1 cd /home/nguye/.treehouse/demand-planning-9df7b9/3/demand-planning && /usr/bin/flock -n /home/nguye/firstmate/state/dp-logistics-alert-weekly.lock scripts/run_logistics_alert_local.sh --send >> /home/nguye/firstmate/state/dp-logistics-alert-weekly.log 2>&1

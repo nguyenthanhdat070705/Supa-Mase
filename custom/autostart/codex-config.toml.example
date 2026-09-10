@@ -22,6 +22,24 @@ trust_level = "trusted"
 [projects."/home/nguye/.no-mistakes/repos"]
 trust_level = "trusted"
 
+[projects."/home/nguye/.no-mistakes/worktrees/19c8946a824a/01M24JC9P859F1P23H3Q1C3Q9C"]
+trust_level = "trusted"
+
+[projects."/home/nguye/.no-mistakes/worktrees/19c8946a824a/01M24MCDTMJ1XJ7YYGSAC18MEG"]
+trust_level = "trusted"
+
+[projects."/home/nguye/.no-mistakes/worktrees/19c8946a824a/01M24MSJ4RBVE32VJZYYBK6JGW"]
+trust_level = "trusted"
+
+[projects."/home/nguye/.no-mistakes/worktrees/19c8946a824a/01M253TTMWQ72XXZ5RH20AY0B4"]
+trust_level = "trusted"
+
+[projects."/home/nguye/.no-mistakes/worktrees/19c8946a824a/01M257MR3HD5M6A6QZABWQNH57"]
+trust_level = "trusted"
+
+[projects."/home/nguye/.no-mistakes/worktrees/19c8946a824a/01M257WCMNH6G0DRN9J1CDAAQN"]
+trust_level = "trusted"
+
 [hooks.state]
 
 [hooks.state."/home/nguye/.codex/hooks.json:session_start:0:0"]
@@ -48,7 +66,7 @@ trusted_hash = "sha256:6874d92dd2befa3254ab2c99d3559399f98d3c155f533ce19c9872115
 [tui.model_availability_nux]
 "gpt-5.5" = 3
 "gpt-5.6-sol" = 4
-gpt-6-astra = 1
+gpt-6-astra = 4
 
 [notice]
 hide_rate_limit_model_nudge = true

@@ -1,1 +1,1 @@
-codex --model gpt-6-astra -c 'model_reasoning_effort="max"' --dangerously-bypass-approvals-and-sandbox
+/home/nguye/.npm-global/bin/codex --model gpt-6-astra -c 'model_reasoning_effort="max"' --dangerously-bypass-approvals-and-sandbox
