@@ -1,0 +1,31 @@
+# firstmate on a 24/7 Linux server.
+# State + secrets live in ./state and ./secrets (restored from the migration bundle),
+# mounted into the container so `docker compose down/up` and image rebuilds never lose them.
+services:
+  firstmate:
+    build:
+      context: .
+      args:
+        CODEX_VERSION: "0.154.0"
+    image: firstmate:local
+    container_name: firstmate
+    restart: unless-stopped
+    tty: true              # keep a TTY so the tmux-hosted agents behave like the WSL setup
+    stdin_open: true
+    environment:
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      # --- STATE (memory, gate, bridge) — the "soul"; back this up ---
+      - ./state/firstmate:/home/nguye/firstmate            # data/ state/ config/ projects/
+      - ./state/no-mistakes:/home/nguye/.no-mistakes       # binary + sqlite + gate repos
+      - ./state/fm-telegram:/home/nguye/fm-telegram         # bridge + inbox (telegram.env inside)
+      # --- SECRETS / auth — sensitive, restored separately, re-auth if OAuth expired ---
+      - ./secrets/codex:/home/nguye/.codex                  # ChatGPT OAuth (auth.json) + config.toml
+      - ./secrets/claude:/home/nguye/.claude                # Claude Max creds + custom skills
+      - ./secrets/gh:/home/nguye/.config/gh                 # 2 GitHub accounts
+      # --- single-file customizations ---
+      - ./state/fm-primary:/home/nguye/.fm-primary          # which agent is the first mate
+      - ./state/fm-up:/home/nguye/.local/bin/fm-up          # one-command starter
+      - ./state/crontab.container:/home/nguye/crontab.container:ro
+    # Optional: cap memory so a runaway job can't take the whole server (tune to your box).
+    # mem_limit: 12g

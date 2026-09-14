@@ -1,0 +1,11 @@
+# firstmate container crontab (supercronic format — 5 fields + command).
+# Cleaned for the Linux server: the Windows /mnt/c mix-precalc line and the
+# one-off ~/.treehouse logistics-alert jobs from the WSL host are intentionally
+# dropped (those paths do not exist here). Times are container-local (TZ=Asia/Ho_Chi_Minh).
+#
+# Morning demand-planning robot — 08:45 VN daily.
+45 8 * * * /home/nguye/firstmate/data/dp-morning-robot/run.sh >> /home/nguye/firstmate/data/dp-morning-robot/logs/cron.log 2>&1
+#
+# NOTE: the host used a separate @reboot catch-up (WSL rebooted often). On a 24/7
+# server that is rarely needed; run a missed morning manually if the box was down:
+#   docker exec -it firstmate /home/nguye/firstmate/data/dp-morning-robot/run.sh --boot

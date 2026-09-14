@@ -1,0 +1,8 @@
+# The build context only needs the Dockerfile + entrypoint. State/secrets are
+# mounted at runtime, never baked into the image.
+state/
+secrets/
+firstmate-migration-*.tar.gz
+firstmate-migration-*.tar.gz.gpg
+*.log
+README-MOVE.md
