@@ -37,7 +37,12 @@ RUN ARCH=$(dpkg --print-architecture) \
  && chmod +x /usr/local/bin/supercronic
 
 # --- non-root user matching the host (UID 1000 = nguye) ---
-RUN (id -u $USER >/dev/null 2>&1 || useradd -m -u $UID -s /bin/bash $USER) \
+# ubuntu:24.04 ships a default 'ubuntu' user already holding UID 1000, so free it first.
+RUN if ! id -u $USER >/dev/null 2>&1; then \
+      existing=$(getent passwd $UID | cut -d: -f1); \
+      [ -n "$existing" ] && userdel -r "$existing" 2>/dev/null || true; \
+      useradd -m -u $UID -s /bin/bash $USER; \
+    fi \
  && mkdir -p /home/$USER/.local/bin /home/$USER/.npm-global \
  && chown -R $USER:$USER /home/$USER
 USER $USER
