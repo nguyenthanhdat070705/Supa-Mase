@@ -1,0 +1,1 @@
+restrict,command="/usr/bin/python3 -I /usr/local/libexec/secondmate-git-broker/broker.py forced-command" ssh-ed25519 REPLACE_WITH_SANDBOX_PUBLIC_KEY secondmate-sandbox-git-only

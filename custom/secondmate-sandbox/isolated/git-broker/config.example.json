@@ -1,0 +1,5 @@
+{
+  "repository": "/var/lib/secondmate-git-broker/repo.git",
+  "state_dir": "/var/lib/secondmate-git-broker/state",
+  "credential_command": ["/usr/local/libexec/secondmate-git-token"]
+}

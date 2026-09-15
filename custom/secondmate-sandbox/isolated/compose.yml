@@ -1,0 +1,36 @@
+services:
+  secondmate:
+    build:
+      context: ./runtime
+    image: secondmate:local
+    container_name: secondmate
+    user: "1000:1000"
+    hostname: secondmate
+    entrypoint: ["/bin/bash", "/opt/secondmate/entrypoint.sh"]
+    restart: unless-stopped
+    init: true
+    tty: true
+    stdin_open: true
+    working_dir: /home/nguye/team-sandbox
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - ./secondmate.env
+    environment:
+      HOME: /home/nguye
+      FM_HOME: /home/nguye/team-sandbox
+      SM_EXPECTED_BOT_USERNAME: MaychaFinance_Bot
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - ./home:/home/nguye
+      - ./runtime:/opt/secondmate:ro
+      - ./secrets/bot-token:/run/secrets/secondmate-bot-token:ro
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 512
+    mem_limit: 6g
+    cpus: 3
+    tmpfs:
+      - /tmp:mode=1777,size=512m
+    # No host socket, no firstmate state, no shared credential/history mounts.
+    # home/ contains only the provisioner, seeded secondmate and separate auth copy.

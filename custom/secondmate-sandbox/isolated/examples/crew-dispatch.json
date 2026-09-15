@@ -1,0 +1,55 @@
+{
+  "rules": [
+    {
+      "when": "tasks explicitly assigned to Minh, worker 8, unless a newer per-task captain model override says otherwise",
+      "use": {
+        "harness": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "xhigh"
+      },
+      "why": "Captain 14/09/2026: Hãy cho Minh đây qua luna xhigh nhé. This named-worker override takes precedence over generic light-task Spark routing."
+    },
+    {
+      "when": "hard work: complex feature builds, architecture or design decisions, ambiguous investigation, performance/optimization work, security-sensitive changes, anything with wide blast radius, or a task a previous crewmate already failed",
+      "use": {
+        "harness": "codex",
+        "model": "gpt-5.6-sol",
+        "effort": "xhigh"
+      },
+      "why": "Captain 14/9/2026: các worker chạy XHIGH; giữ model theo độ khó, Spark cho việc nhẹ."
+    },
+    {
+      "when": "everyday well-scoped implementation: a clear feature or fix with a known path, standard CRUD screens, tests for existing behavior, moderate-complexity data scripts",
+      "use": {
+        "harness": "codex",
+        "model": "gpt-5.6-terra",
+        "effort": "xhigh"
+      },
+      "why": "Captain 14/9/2026: các worker chạy XHIGH; giữ model theo độ khó, Spark cho việc nhẹ."
+    },
+    {
+      "when": "lightweight mechanical tasks: file or UI inventories, simple labels, documentation, small well-understood edits and repetitive bounded chores",
+      "use": {
+        "harness": "codex",
+        "model": "gpt-5.3-codex-spark",
+        "effort": "xhigh"
+      },
+      "why": "Captain 14/9/2026 explicitly added Codex 5.3 Spark XHIGH for light work; installed Codex model catalog confirms the canonical slug and XHIGH support."
+    },
+    {
+      "when": "fallback for everyday well-scoped tasks when Terra is unavailable or out of quota, or an explicit per-task request for Luna",
+      "use": {
+        "harness": "codex",
+        "model": "gpt-5.6-luna",
+        "effort": "xhigh"
+      },
+      "why": "Captain 14/9/2026: các worker chạy XHIGH; giữ model theo độ khó, Spark cho việc nhẹ."
+    }
+  ],
+  "default": {
+    "harness": "codex",
+    "model": "gpt-5.6-terra",
+    "effort": "xhigh"
+  },
+  "note": "Captain 14/9/2026: all workers XHIGH (supersedes worker MAX policy of 9/9); light work uses gpt-5.3-codex-spark XHIGH, hard work Sol XHIGH, standard work Terra XHIGH, Luna retained as fallback. Primary Astra 6 MAX and supervisor-only role are unchanged."
+}
