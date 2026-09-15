@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "listen_host": "127.0.0.1",
+  "listen_port": 8787,
+  "allow_private_http": false,
+  "database": "/var/lib/firstmate-control/control.sqlite3",
+  "captain_user_id": 123456789,
+  "parents": {
+    "firstmate": {
+      "token_file": "/etc/firstmate-control/parent-firstmate.token"
+    }
+  },
+  "children": {
+    "team-sandbox": {
+      "parent_id": "firstmate",
+      "container": "secondmate",
+      "home": "/home/nguye/team-sandbox",
+      "exec_user": "1000:1000",
+      "scope": {"domain": "finance", "group_ids": []},
+      "token_file": "/etc/firstmate-control/child-team-sandbox.token"
+    }
+  },
+  "operators": {
+    "captain-operator": {
+      "token_file": "/etc/firstmate-control/operator.token",
+      "children": ["team-sandbox"],
+      "allow_recovery": true
+    }
+  }
+}

@@ -119,6 +119,10 @@ class BridgeTests(unittest.TestCase):
         self.queue.ingest({"update_id": 101, "message": message(chat=-100, kind="group")})
         self.assertEqual(len(self.queue.pending_group_candidates()), 1)
         self.queue.cfg = Settings(self.cfg.home, self.cfg.captain, frozenset([-100, -200]))
+        # Env changes are no longer an enrollment path after the one-time seed.
+        self.assertEqual(len(self.queue.pending_group_candidates()), 1)
+        with self.queue.db:
+            self.queue.db.execute("INSERT INTO groups VALUES (-200,1,102)")
         self.assertEqual(self.queue.pending_group_candidates(), [])
         self.assertEqual(self.queue.db.execute("SELECT status FROM updates WHERE update_id=100").fetchone()[0], "ignored")
 
@@ -137,6 +141,7 @@ class BridgeTests(unittest.TestCase):
     def test_delivery_failure_is_durable_and_never_auto_replayed(self):
         self.queue.ingest({"update_id": 100, "message": message()})
         target = Mock()
+        target.prepare_delivery.return_value = {"attempt_id": "fixture"}
         target.inject.side_effect = RuntimeError("tmux failed after possible paste")
         with self.assertRaises(Refusal):
             self.queue.deliver_one(target)
@@ -151,6 +156,8 @@ class BridgeTests(unittest.TestCase):
         for uid in [100, 101]:
             self.queue.ingest({"update_id": uid, "message": message()})
         target = Mock()
+        target.prepare_delivery.return_value = {"attempt_id": "fixture"}
+        target.await_ack.return_value = True
         self.assertTrue(self.queue.deliver_one(target))
         self.assertFalse(self.queue.deliver_one(target))
         self.assertEqual(self.queue.row(100)["status"], "delivered")
@@ -172,7 +179,9 @@ class BridgeTests(unittest.TestCase):
         target = Target(self.cfg)
         target.check_identity = Mock(return_value=({"nonce": "test"}, "%17"))
         target.tmux = Mock()
-        target.inject(100)
+        attempt = {"runtime": {"nonce": "test"}, "pane": "%17", "pointer": "# SECONDMATE_INBOX 100 /fixed/inbox/100.json"}
+        with patch("bridge.time.sleep"):
+            target.inject(100, attempt)
         calls = target.tmux.call_args_list
         self.assertEqual(calls[0].args[:3], ("load-buffer", "-b", "secondmate-inbox-100"))
         self.assertIn("/inbox/100.json", calls[0].kwargs["input"])
@@ -187,8 +196,9 @@ class BridgeTests(unittest.TestCase):
         identity = ({"nonce": "original"}, "%17")
         target.check_identity = Mock(side_effect=[identity, identity, ({"nonce": "replacement"}, "%18")])
         target.tmux = Mock()
-        with self.assertRaisesRegex(Refusal, "Enter withheld"):
-            target.inject(100)
+        attempt = {"runtime": identity[0], "pane": identity[1], "pointer": "# SECONDMATE_INBOX 100 /fixed/inbox/100.json"}
+        with patch("bridge.time.sleep"), self.assertRaisesRegex(Refusal, "Enter withheld"):
+            target.inject(100, attempt)
         self.assertEqual(target.tmux.call_count, 2)
         self.assertEqual(target.tmux.call_args.args, ("paste-buffer", "-d", "-b", "secondmate-inbox-100", "-t", "%17"))
 
@@ -197,7 +207,7 @@ class BridgeTests(unittest.TestCase):
         target.check_identity = Mock(side_effect=[({"nonce": "original"}, "%17"), ({"nonce": "replacement"}, "%18")])
         target.tmux = Mock()
         with self.assertRaisesRegex(Refusal, "before paste"):
-            target.inject(100)
+            target.inject(100, {"runtime": {"nonce": "original"}, "pane": "%17", "pointer": "# SECONDMATE_INBOX 100 /fixed/inbox/100.json"})
         self.assertEqual(target.tmux.call_count, 1)
 
     def setup_process_target(self, foreground="node", runtime_pid=123):
@@ -324,7 +334,7 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(api.send.call_count, 2)
         self.assertIn("failed: incomplete action", api.send.call_args.args[1])
 
-    def test_failed_parent_forward_is_retained_without_duplicate_retry(self):
+    def test_failed_parent_forward_retries_stable_idempotent_host_event(self):
         path = self.cfg.home / "parent.status"
         path.write_text("failed: model unavailable\n", encoding="utf-8")
         self.queue.collect_parent_reports(path)
@@ -332,8 +342,12 @@ class BridgeTests(unittest.TestCase):
         api.send.side_effect = Refusal("network failure")
         with self.assertRaises(Refusal):
             self.queue.forward_parent_report(api)
-        self.assertFalse(self.queue.forward_parent_report(api))
         self.assertEqual(self.queue.db.execute("SELECT status FROM parent_reports").fetchone()[0], "uncertain")
+        first_id = api.send.call_args.kwargs["report_id"]
+        api.send.side_effect = None
+        self.assertTrue(self.queue.forward_parent_report(api))
+        self.assertEqual(api.send.call_args.kwargs["report_id"], first_id)
+        self.assertFalse(self.queue.forward_parent_report(api))
 
 
 if __name__ == "__main__":

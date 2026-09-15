@@ -1,0 +1,25 @@
+[Unit]
+Description=Firstmate scoped container parent control service
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/usr/local/lib/firstmate-control/parent-control
+ExecStart=/usr/local/lib/firstmate-control/venv/bin/python /usr/local/lib/firstmate-control/parent-control/server.py --config /etc/firstmate-control/server.json
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/firstmate-control
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+Environment=PYTHONDONTWRITEBYTECODE=1
+# Docker access is held only by this trusted host service; neither agent gets it.
+
+[Install]
+WantedBy=multi-user.target

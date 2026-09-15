@@ -17,3 +17,10 @@ git-broker/authorized_keys
 id_ed25519*
 *.pem
 *.key
+*.dsn
+*.token
+instance.json
+parent-control/config.json
+parent-control/client.json
+parent-control/operator.json
+data-access/config.json

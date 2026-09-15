@@ -9,28 +9,98 @@
   "reasoning_effort": "xhigh",
   "files": [
     {
+      "path": ".gitattributes",
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9",
+      "git_mode": "100644"
+    },
+    {
       "path": ".gitignore",
-      "sha256": "6b08bb23078f038eabe075cdc1297cdfbb9bb7859d6c7f594d36bb3d4febd4a7",
+      "sha256": "7c29362455327c0174bccebaa518d518b6e88eef27ac87b5102fa1db61e67286",
       "git_mode": "100644"
     },
     {
       "path": "README.md",
-      "sha256": "106578c9b418fee576e0ed687957755df813e5a2efc22581e6e6c8c1636cc166",
+      "sha256": "fae05f6bf59da03c93e43a2ad8e28cb661a985e0f3de05e2bce3dd0c1f055ff1",
       "git_mode": "100644"
     },
     {
       "path": "REPRODUCE.md",
-      "sha256": "d6741edb23a18bd6af47f31686b88d48a08b2fb1f121af27ace5de36dfb79c64",
+      "sha256": "e0c3a449b6b4c3264b9ba6570321eb7a991384d88cfa4e7838fec68dfb130ed9",
+      "git_mode": "100644"
+    },
+    {
+      "path": "VALIDATION.md",
+      "sha256": "a19d019811d62e938108f1a15cc7079fba3af7b939d2cc9a08a87ca91ee2f998",
       "git_mode": "100644"
     },
     {
       "path": "charter-domain.md",
-      "sha256": "02f451e9e639ed4e29e53c4dba3af200d4eaa7d0362d55ea153db1e51f6f39ce",
+      "sha256": "b6c2c2b223d062a665e57499a2a8cc9a67c3a4fab6389109d8432e62b296002b",
       "git_mode": "100644"
     },
     {
       "path": "compose.yml",
-      "sha256": "1e47041f1b2a973c9f4c4de110301c7bbd05aa2bc18e246b5892549584c4efb0",
+      "sha256": "5c5c609112337cb6944b3ed55307d0da34291951a1643685a89f6144796a8ec2",
+      "git_mode": "100644"
+    },
+    {
+      "path": "data-access/.gitignore",
+      "sha256": "413575350c6531dc35ccd95c09deea4c4f83da23c99b67127be27f370dca285f",
+      "git_mode": "100644"
+    },
+    {
+      "path": "data-access/README.md",
+      "sha256": "698ee965b249871c476556a5f830d51c0100cbafe4ba92b6b727170cfc5d7313",
+      "git_mode": "100644"
+    },
+    {
+      "path": "data-access/audit-reader.sql",
+      "sha256": "b859cd032035323d2795835ef26c34891a4e3feaa207ae003db3f62e0d584752",
+      "git_mode": "100644"
+    },
+    {
+      "path": "data-access/config.example.json",
+      "sha256": "d7d01bb77408712ab9c5caa48e52f334a43cd3b43b13e873286ddeb50ba183a4",
+      "git_mode": "100644"
+    },
+    {
+      "path": "data-access/data_client.py",
+      "sha256": "919580a8f5ced936b442fe51ec4f9511f7c4b52a513ff7c71d0dbb5e319132c3",
+      "git_mode": "100644"
+    },
+    {
+      "path": "data-access/data_service.py",
+      "sha256": "08fd42a8e6de7e473eec9e23bac9e2480e2d716c105e35c9fe7ecabf5561b27e",
+      "git_mode": "100644"
+    },
+    {
+      "path": "data-access/fingerprint_manifest.py",
+      "sha256": "6522a4dbaac08298ba5cf9ee97fb9bb6133c2d61449557b49e9c972015ef5034",
+      "git_mode": "100644"
+    },
+    {
+      "path": "data-access/provision-reader.sql",
+      "sha256": "26e833355a4fcb13971024f2072152c93cf8bc8a897becbb103652843f110d80",
+      "git_mode": "100644"
+    },
+    {
+      "path": "data-access/requirements.txt",
+      "sha256": "08b20d9f21e4190614bc6fef535d2d8e5d41f39b82dfccb5abb366cf58f4651f",
+      "git_mode": "100644"
+    },
+    {
+      "path": "data-access/test_data_client.py",
+      "sha256": "db5bc120cde96f0a33db98710b2bacba9c49e029023fa680cfc77c10741b5b1a",
+      "git_mode": "100644"
+    },
+    {
+      "path": "data-access/test_data_service.py",
+      "sha256": "c697527fbbe2ed4411a2ef01ebf0e3bf94b1d9cd6c71342bd453ef0d199438e9",
+      "git_mode": "100644"
+    },
+    {
+      "path": "data-access/test_postgres_integration.py",
+      "sha256": "74980086087151400f7467664b347173dd01f256203c8f73f533f3cdda32894d",
       "git_mode": "100644"
     },
     {
@@ -99,38 +169,143 @@
       "git_mode": "100755"
     },
     {
+      "path": "instance.example.json",
+      "sha256": "c0b043eb2f42bf4c636ceee5dd07236f2bded5ed6a7534c1ff081b3a7aa78dc4",
+      "git_mode": "100644"
+    },
+    {
+      "path": "integration/test_contract.py",
+      "sha256": "fa81f274a3c1d26d135f5af7dfce5e0e7165aa39ed85ea5ee485658348fc94fd",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/README.md",
+      "sha256": "36a4f423c5996da6714c22e6f0b8bb1c4b52a359ca61d52441595404f41b0319",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/approval.example.json",
+      "sha256": "81a80f948ad2889abe77f4fdafdda56d793fc9ce5b7186db115e9e2a3f256a4f",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/binding.py",
+      "sha256": "7423ece61bb97d24c04d0864abda1ba329a367d3657085fe3ea3c14f92484c0f",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/client.example.json",
+      "sha256": "a6203dec020ce2d5c3335ce01ed966219e6d19709f547cbb744d9c6a437b62b4",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/client.py",
+      "sha256": "dcfd8432d124d37a301098e365d76a9ff11193d79e04b075c26f717e7fe0163d",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/common.py",
+      "sha256": "840ec8bb2a23b6ff60b186203ff1fae32d72d4e4d2496a790300ca1f0be5f10d",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/firstmate-control.service",
+      "sha256": "61de73d0a50474918a3048c21c111d891bfd46c92644aa15b905fab54fd42f94",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/lifecycle.py",
+      "sha256": "6244d353de090ecf8a05f32a7e661b62bb596f4fb854b3e8681eeea9aefdd05f",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/local_ops.py",
+      "sha256": "9b579d598c39655ba8c60372c2aa9f35f62820940b758ab7fb211454e5a4dcf0",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/server.example.json",
+      "sha256": "64734427c1afbcc0833f35721f2dfc34d064e9debc77ca6edc0041a2a5b38ed3",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/server.py",
+      "sha256": "b603c88bbc3e26fff34af100334922a19eebecd172eaa48a5014ee554b4312a5",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/test_binding.py",
+      "sha256": "9ecaad029ed27073490db6cc018f8dc4890f97d4b9a0288c26ed31201652e38d",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/test_control.py",
+      "sha256": "85bd2afaa4b1730f939892a9c6e6c6374a2ef0c1189345fb80612db116658cae",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/test_storage.py",
+      "sha256": "eb4180bc150b4f014f879c34e5779324680834983dad2d7ca6b99938c0594aa3",
+      "git_mode": "100644"
+    },
+    {
       "path": "runtime/Dockerfile",
       "sha256": "90de7b5107b825af3964ab64ab7686790143b248f2df348f6941b71071a92966",
       "git_mode": "100644"
     },
     {
       "path": "runtime/README.md",
-      "sha256": "9e669b19c6c147dc491e3a22051d1d2b6bab3550558e736ae40dadfa6714cec2",
+      "sha256": "24db8ee19b015d8ca8def704b8ecb3041824d8a544303bdef28b5e38e577c201",
       "git_mode": "100644"
     },
     {
       "path": "runtime/bridge.py",
-      "sha256": "c342ea4dda04966a14949c684cccf806dabb431a151d31b87328e8600c02aa15",
+      "sha256": "0a7524d461cb2bcb4a8cdd2c8983a99e3b802453a6a9831de5991a9251d80056",
       "git_mode": "100755"
+    },
+    {
+      "path": "runtime/control_client.py",
+      "sha256": "713a4c4e89527da4b5a21bab5814fd9e5c9505f904fa0c9e15ee526351673595",
+      "git_mode": "100644"
     },
     {
       "path": "runtime/entrypoint.sh",
-      "sha256": "64717890408b2cab9f4099631b7d6d0c65cf7eda7ee828ac6e4c0075d7937572",
+      "sha256": "31b696951310cbaf2e091ea9b5ced7444ce91ded596732fda75976ba5050e34f",
       "git_mode": "100755"
     },
     {
+      "path": "runtime/errors.py",
+      "sha256": "8804534b6dae4f6bf520bca3a8323ede8d72026419beaceb437411e5768be9e5",
+      "git_mode": "100644"
+    },
+    {
+      "path": "runtime/knowledge.py",
+      "sha256": "a5b2b08ce0abd89c1186839ec9b8b294fe35f3a93cd42690f27b29a40562d8dd",
+      "git_mode": "100644"
+    },
+    {
       "path": "runtime/secondmate-transport.md",
-      "sha256": "1e9f0c4883bc1662b63c2861a193ce1f786830a3ab83835a6a72ee8491ee5434",
+      "sha256": "13e1655f6ed2933ba19078e0c9a7616124c78965a291e8c1729f41f1ed0cc610",
+      "git_mode": "100644"
+    },
+    {
+      "path": "runtime/session_delivery.py",
+      "sha256": "de62107f7144b95d410163bbedaa9d1a91f94d0bd54e5d1e1533ec775adb1284",
       "git_mode": "100644"
     },
     {
       "path": "runtime/test_bridge.py",
-      "sha256": "bbc18e3c55f0f8fb841a9b66c9b7c88ee9d42cb507746583ade879e209fcb8f2",
+      "sha256": "381bd7647ca1d9d6a20bfbfae7be96a3ea19c5ee19bc2f49c9f78ab7a3019318",
+      "git_mode": "100644"
+    },
+    {
+      "path": "runtime/test_upgrade.py",
+      "sha256": "109ea5388c427dc90ae84016e62dd78b3d219ec8330c133d0c3184e356651c0d",
       "git_mode": "100644"
     },
     {
       "path": "secondmate.env.example",
-      "sha256": "50257033f0ca297477530aceca96f1d4a8f1a5514fbf81c2d23994eb7ecaeb68",
+      "sha256": "982a3555ac6790552c4eff28e4546536c9ea80a143f5eb94ea82057e5a09dd4b",
       "git_mode": "100644"
     }
   ]

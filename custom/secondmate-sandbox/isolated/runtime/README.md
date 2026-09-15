@@ -1,136 +1,178 @@
-# Persistent team-sandbox deployment
+# Isolated persistent child runtime
 
-This bundle runs the user-authorized secondmate with its own Telegram bot and
-`gpt-5.6-sol` / `xhigh`. It is an isolated Docker sidecar. It uses neither primary
-`fm-up` nor primary cron, no-mistakes state, GitHub credentials or tmux sockets.
+This runtime keeps the existing Docker/tmux secondmate and adds a real parent
+adapter to primary firstmate. It accepts scoped parent requests and authorized
+team Telegram messages, reports outcomes upward, and keeps each child's memory
+and work private. The initial instance uses `gpt-5.6-sol` / `xhigh`.
 
-## Host layout
+## Configuration and separation
+
+Use a separate deployment directory, container, HOME, bot, control token and
+instance manifest for every child. Copy `../instance.example.json` to the host's
+`instance.json`; its read-only mount fixes child ID, parent, own home, tmux target,
+bot username, launch model and excluded group IDs. Never share HOME/queue/session
+volumes between children. Use `../secondmate.env.example` for verified Telegram
+identity and one-time group bootstrap values. Actual secrets remain private.
+For each additional instance, change the compose service/container name and its
+own HOME/bot/token mounts, then register that exact container and child ID in the
+host parent registry; changing the manifest alone does not create another child.
+
+The compose mounts are deliberately narrow:
+
+- Independent `home/` at `/home/nguye`; a separately installed Codex auth copy is
+  an operator prerequisite, not an inherited memory/configuration mount.
+- This source directory and `instance.json` read-only at `/opt/secondmate`.
+- This child's bot token and parent-control token as separate read-only files.
+- Only `data-access/data_client.py` from the database package. No database DSN,
+  server module, primary GitHub credential, firstmate HOME or Docker socket.
+
+The derived image preserves Codex under `/opt/codex` so mounting HOME cannot
+hide it. `firstmate:local` and a reviewed Linux `treehouse` binary are build
+prerequisites; see the top-level reproduction guide for exact versions. Existing
+Git transport remains the constrained host broker. This change does not replace
+that broker, create production access, merge PRs or deploy source changes.
+
+## Parent binding and startup
+
+The official helper seeds the `demand-planning-maycha` direct-PR child from the
+pinned framework clone at `/home/nguye/provisioner`. The clone is a source of
+framework code, not a live parent. Provisioning/charter assembly remain explicit
+operator steps. Do not start compose in an unseeded child working directory.
+
+For the existing deployment, stop the service only after reconciling active
+work and backing up its independent HOME/SQLite database consistently. Run the
+host-side `parent-control/binding.py` as the child-home owner with the actual
+`--home`, `--child-id`, `--parent-id` and `--parent-url`. The helper requires the
+service lock to be free, preserves the old marker, and writes:
 
 ```
-secondmate/
-  compose.yml
-  secondmate.env                 # verified public IDs; mode 600
-  secrets/bot-token               # own Telegram token; owner 1000, mode 400
-  runtime/                       # this bundle, read-only container mount
-    Dockerfile
-    treehouse                    # reviewed/pinned Linux binary, operator supplies
-    bridge.py
-    entrypoint.sh
-    secondmate-transport.md
-  home/                          # independent persistent volume, owner 1000
-    .codex/auth.json              # separately copied auth only, never shared mount
-    .codex/config.toml            # separate config/trust, no primary hooks
-    provisioner/                 # static pinned distro clone, local seed controller
-    team-sandbox/                # persistent child seeded by official local helper
-      .fm-secondmate-home        # exact contents: team-sandbox
-      data/charter.md
-      data/secondmate-transport.md
-      state/secondmate-telegram/
+.fm-secondmate-parent                 # schema=fm-secondmate-parent.v1, route=remote
+data/parent-control-binding.json       # actual parent/child/service identity
 ```
 
-The official `fm-home-seed.sh` seeds the local child from the provisioner with
-the `demand-planning-maycha` project using direct-PR delivery. Provisioning and
-charter assembly are separate from this runtime.
-Copy `secondmate-transport.md` into the child's `data/`. Main firstmate may keep a
-human-readable external-sandbox inventory record; do not register a local active
-route into a container home that it cannot supervise. It must not auto-sync or
-auto-respawn this external service.
+`route=remote` expresses the separate filesystems; this is the custom container
+adapter, not the framework's native remote-spawn backend. Do not fabricate local
+`fm-spawn` metadata. Register the existing container in the host parent service,
+install its child-scoped token, and make the configured control URL reachable
+from Docker's host gateway. Copy the updated domain charter and
+`secondmate-transport.md` into the seeded child's `data/` before launch.
 
-The derived image moves the existing Codex installation to `/opt/codex` so a
-whole-HOME mount cannot hide it. Auxiliary npm tool versions are pinned in the
-Dockerfile. Supply the operator-reviewed `treehouse` binary before building.
-Any Git transport credential must be separate and constrained to sandbox branch
-operations; no primary GitHub token or host Docker socket belongs in this image.
+On startup, the entrypoint checks both markers and the binding against the
+instance. The main agent reads its charter and calls:
 
-## Startup and real readiness check
+```
+python3 /opt/secondmate/bridge.py ready --proof SECONDMATE_READY
+```
 
-1. Seed and validate child; set model/config and explicit isolated project trust.
-   Install independent Codex auth and the separate bot secret without printing it.
-2. Configure verified numeric captain ID, allowed group IDs, expected bot username
-   and forbidden primary bot ID. Leave group list empty until authorized/verified.
-3. Build/start with `docker compose up -d --build` from the host deployment folder.
-4. Inspect with `docker exec secondmate tmux -L secondmate capture-pane -p -t
-   team-sandbox:0.0`. The exact target is `team-sandbox:0.0`; `team-sandbox:0` is the
-   corresponding single-pane window.
-5. Codex receives a fixed startup prompt. The agent reads its charter/transport
-   rules and makes a real shell tool call to `bridge.py ready --proof
-   SOL_XHIGH_SANDBOX_READY`. The command rejects an operator shell: its ancestry
-   must contain the launched agent PID, start time, home and nonce, and the pane
-   foreground must be Codex or its positively verified npm Node wrapper. The
-   bridge withholds Telegram pointers during the initial unready trust/auth flow.
-6. Verify the readiness result and the actual model/effort in the startup UI or
-   local Codex session metadata. Readiness proves a real agent tool call, not a
-   provider-side model identity attestation. If startup is blocked, resolve that
-   first; do not manufacture readiness JSON.
+This must be a real agent tool call. The bridge proves launched PID/start/nonce,
+own home, exact immutable pane, verified Codex executable (including its anchored
+npm Node wrapper), foreground process group and tool ancestry. It binds the
+exact Codex thread/session IDs and matching session metadata. Readiness waits
+for that same model turn's `task_complete`; it does not enable intake while the
+startup turn is still working. Verify model/effort independently in runtime UI
+or session metadata. Do not manufacture readiness JSON.
 
-Readiness is **not a general TUI modal detector**. A later manual selector/auth
-dialog can retain the same process identity. Keep the agent pane dedicated and
-unattended while the bridge is live. Stop the bridge before interactive operator
-maintenance and re-establish agent readiness before resuming it.
+## Delivery and dynamic groups
 
-## Transport behavior
+The durable SQLite queue records Telegram updates before advancing the cursor.
+Duplicate updates do not replace earlier state. Parent UUID requests use stable
+negative internal IDs, leaving Telegram cursor semantics unchanged. Parent
+request limits match the host: nonblank body up to 100000 UTF-8 bytes, no NUL,
+and a JSON object scope up to 8000 canonical UTF-8 bytes.
 
-- Captain identity uses Telegram `from.id` in captain's private DM or an allowed
-  group. Unknown chats, bot senders, anonymous admins/channel senders and non-text
-  updates are ignored and recorded without retaining their content.
-- Each accepted update and the next Telegram cursor commit in one SQLite
-  transaction. Duplicate updates never replace earlier queue state.
-- A single flock-protected poller writes canonical JSON inbox files. Only a
-  fixed shell-comment pointer (`# SECONDMATE_INBOX`) with a numeric update ID
-  enters tmux. User text, names and
-  titles never enter shell command text. Wrong marker/PID/start/home/nonce,
-  a shell foreground, stale readiness, or a foreground tool causes refusal.
-- Paste and Enter address the validated immutable `%pane` ID. Identity is checked
-  again before paste and after paste before Enter. This narrows process races;
-  tmux and process checks are not one mathematically atomic operation. The marker
-  is a harmless shell comment if the last moment of a race reaches a shell.
-- Exactly one inbox item may be outstanding. A verified agent readiness proof
-  is consumed for delivery. The agent sends `notify --update ID --file PATH`,
-  which binds the response to the original chat/topic/message, then
-  `complete --update ID`, which requires a successful reply and real agent
-  ancestry before enabling the next delivery.
-- `notify --captain --file PATH` is the explicit background escalation route.
-  Stock parent status lines are also collected from the static provisioner's
-  `state/team-sandbox.status` and forwarded to captain via a durable byte cursor.
-  Partly appended lines are not acknowledged. Reports stay local if sending fails.
-- Outbound destinations are constrained to captain or currently allowed groups;
-  there is no freeform chat-ID option on the CLI. No terminal scraping is used
-  to guess assistant answers.
+Only the fixed shell-comment pointer `# SECONDMATE_INBOX ID /fixed/path/ID.json`
+enters tmux; Telegram text is data inside the inbox. Paste and Enter use the
+verified immutable pane ID, with a short paste-settle delay and an identity
+recheck before Enter. `delivered` now requires a new exact user-input record in
+the bound Codex session after the saved attempt cursor. A successful tmux command
+alone is insufficient. Missing proof becomes `unacknowledged` and reports an
+operator-attention event upward. No automatic replay or second Enter occurs.
 
-## Failure recovery
+Each accepted request needs `notify --update ID --file PATH`, then
+`complete --update ID`. Telegram replies retain original chat/topic/message;
+parent requests send a correlated host event. Telegram outcomes also enter the
+parent report outbox. Completion consumes a real agent proof and waits for the
+matching turn to finish before allowing another request. Compare-and-set state
+transitions prevent a delivery acknowledgment from overwriting a concurrent
+completion. Stock `state/parent-replies.status` records are relayed durably with
+stable event IDs. The old provisioner status file retains its separate cursor
+and is drained during transition; never delete either report stream.
 
-`docker exec secondmate python3 /opt/secondmate/bridge.py status` reports cursor,
-queue counts, report counts and presence of readiness. Presence alone does not
-prove readiness is still valid; the poller revalidates every delivery.
+Real member text in enabled groups becomes team work. Captain identity comes
+only from Telegram's verified numeric `from.id`, including in groups. Bots,
+anonymous/channel senders and unknown users in private chats are ignored.
+Only captain can use `/group_on`, `/group_off` and `/groups`, optionally addressed
+to this bot. Use a numeric target only in captain DM; in a group the command
+applies to that group. Enrollment verifies the bot's membership. Operator
+excluded groups cannot be enrolled. Registry changes are audited and survive
+restart; env group IDs seed the registry once. Revocation is rechecked before
+queued delivery and outbound replies. Earlier ignored messages are not replayed.
 
-For group onboarding, status also exposes `pending_group_candidates`: minimal
-group ID/title and sender/message/update IDs observed only when the exact verified
-captain sends a message in a group that is not allowlisted. No raw message text is
-retained for these ignored updates. Other users, bots and anonymous senders cannot
-create candidates. Candidates confer no authority and receive no delivery or
-automatic enrollment; an operator must explicitly verify and add the intended
-group to `SM_TEAM_GROUP_IDS`. Earlier ignored requests are not replayed.
+## Supervision, inheritance and learning
 
-Messages remain durable when the agent is offline. A crash around tmux delivery
-leaves `delivering` or `uncertain`, blocking automated replay. A crash around
-Telegram report send leaves `sending` or `uncertain`. Telegram sendMessage and
-tmux paste do not provide transactionally coupled idempotency, so exactly-once
-delivery across a process/network crash cannot be guaranteed. The bridge chooses
-manual reconciliation rather than automatically causing duplicate work/messages.
-An operator must inspect the inbox file, actual agent turn and destination before
-changing an uncertain row. Never reset the cursor or delete the SQLite database
-to recover a stuck item. Back up the DB plus WAL consistently before repair.
+The parent API supplies scoped requests, outcome collection, policy snapshots
+and guarded lifecycle operations. It exposes no child approval capability.
+`control_client.py sync-brain` installs only the approved configuration paths and
+curated skills after revision/hash verification, refusing to overwrite local
+edits. Model changes take effect on an authorized fresh launch. It imports no
+primary private memory, backlog, authentication, mutable tool database or
+session history. Snapshot application may be resumed after a partial write;
+files removed from a snapshot are not automatically deleted.
 
-The launch command uses the CLI's approval/sandbox bypass because the entire
-agent operates inside this separately mounted container. Container isolation
-does not replace remote repository branch protection. No auto-merge or automatic
-knowledge promotion is authorized by bridge role labels.
+`knowledge.py propose --file PATH` stores immutable child-local claims/evidence,
+version and content hash, submits them to parent and sends Mac a private notice.
+A host receipt is not approval. Only explicit approval of the exact proposal
+version/hash and selected claims permits parent-side import. The child has no
+approve/apply command. Notification uncertainty is journaled and never silently
+retried. Local learning continues inside the child regardless of proposal status.
 
-## Offline verification
+The mounted `data_client.py` uses child authentication for structured schema and
+read queries. The host derives child scope and holds the database credentials.
+See `data-access/README.md` for supported operations and their limits.
 
-From `runtime/`, run `python3 -m unittest -v test_bridge.py`. The tests never call
-live Telegram. They cover captain-in-group identity, sender spoofing, topic/reply
-binding, unknown chats, duplicates, durable failed delivery, single outstanding
-message, shell rejection, literal input pointers, bot binding, outbound allowlist
-and durable parent report forwarding. Linux runtime additionally verifies real
-tmux/proc ancestry during the startup smoke check.
+## Recovery and guarded lifecycle
+
+`bridge.py status` returns counts, active request metadata, dynamic groups,
+minimal captain-authenticated onboarding candidates and verified readiness.
+`reconcile-delivery` checks acceptance evidence only; it never pastes or submits.
+A crash/timeout can leave `delivering`, `uncertain` or `unacknowledged`; keep the
+request and inspect the existing composer plus exact bound session before an
+explicit operator action. Do not reset cursors, delete the queue or blindly
+rewrite statuses. Legacy in-flight rows without attempts require manual review;
+they are retained by schema migration. Parent outages do not block durable
+Telegram intake, and parent event retries reuse the same idempotency key.
+
+`control-check --quiesce --expected-generation NONCE` acquires a durable lease
+only for the verified idle generation with no active/uncertain request or worker.
+The parent rechecks the same lease/container before stopping or restarting it.
+`control-resume --lease-id UUID` releases it; a fresh launch clears an old lease.
+An interrupted/aborted turn without a matching completion fails closed and
+requires reconciliation. Normal lifecycle commands never force-stop such work.
+
+Readiness is not a generic terminal modal detector. Keep the agent pane dedicated;
+stop/quiesce the bridge before interactive operator maintenance. Process checks,
+paste and log acknowledgment are not one atomic operation. Telegram sends also
+lack transactionally coupled idempotency, so uncertain sends require inspection.
+The queue/registry enforce transport policy for cooperating child processes;
+they are not a hostile-code boundary against the same UID editing its own HOME.
+Host token scopes, constrained Git and database read restrictions are separate
+boundaries. Keep private HOME/state out of commits.
+
+## Offline checks and delivery
+
+From this directory:
+
+```
+python3 -m unittest -v test_bridge.py test_upgrade.py
+```
+
+The tests use mocked Telegram/control endpoints and synthetic Codex logs. They
+cover identity/foreground races, exact session acknowledgment, aborted turns,
+no-replay recovery, concurrent completion, parent size/idempotency contracts,
+dynamic captain administration, group revocation, lifecycle leases, curated
+brain paths and immutable knowledge notifications. A real startup smoke check
+is still required when the approved change is deployed to Linux.
+
+Commit and push all source changes on a dedicated branch, open a PR against
+`maycha-custom`, and ask Mac to review and merge. This publication does not
+restart the running child or authorize auto-merge/deployment.
