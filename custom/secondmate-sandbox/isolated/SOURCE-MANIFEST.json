@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "repository": "nguyenthanhdat070705/Supa-Mase",
+  "pr_base": "maycha-custom",
+  "target_directory": "custom/secondmate-sandbox/isolated",
+  "framework_revision": "b1ad702fafdd03d94e5ce47cd4ba86e589ad33d6",
+  "codex_version": "0.154.0",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "xhigh",
+  "files": [
+    {
+      "path": ".gitignore",
+      "sha256": "6b08bb23078f038eabe075cdc1297cdfbb9bb7859d6c7f594d36bb3d4febd4a7",
+      "git_mode": "100644"
+    },
+    {
+      "path": "README.md",
+      "sha256": "106578c9b418fee576e0ed687957755df813e5a2efc22581e6e6c8c1636cc166",
+      "git_mode": "100644"
+    },
+    {
+      "path": "REPRODUCE.md",
+      "sha256": "d6741edb23a18bd6af47f31686b88d48a08b2fb1f121af27ace5de36dfb79c64",
+      "git_mode": "100644"
+    },
+    {
+      "path": "charter-domain.md",
+      "sha256": "02f451e9e639ed4e29e53c4dba3af200d4eaa7d0362d55ea153db1e51f6f39ce",
+      "git_mode": "100644"
+    },
+    {
+      "path": "compose.yml",
+      "sha256": "1e47041f1b2a973c9f4c4de110301c7bbd05aa2bc18e246b5892549584c4efb0",
+      "git_mode": "100644"
+    },
+    {
+      "path": "examples/backend",
+      "sha256": "bdb2da3e07d4deeb97ebe6401bc8f3edf439806cb7b3922d62cc18ee85506f0e",
+      "git_mode": "100644"
+    },
+    {
+      "path": "examples/backlog-backend",
+      "sha256": "be66cc25633f6b70a4157791cb7ccb5d4891345f325baa25cbf6db82ea557899",
+      "git_mode": "100644"
+    },
+    {
+      "path": "examples/codex.config.toml",
+      "sha256": "f2e286fb7818e1c8af5bce8ab989aca5f70331ae0b8f18ace875a939a6858f29",
+      "git_mode": "100644"
+    },
+    {
+      "path": "examples/crew-dispatch.json",
+      "sha256": "690278c759e15606725d31206de1195f9957b4a30c6d59a822698a4708dd7dcd",
+      "git_mode": "100644"
+    },
+    {
+      "path": "examples/crew-harness",
+      "sha256": "243b0dc9b847e66c440dca985e10fe0ce9e29c379b018ddd5747ba8948f84cc8",
+      "git_mode": "100644"
+    },
+    {
+      "path": "git-broker/README.md",
+      "sha256": "7983c6981c695b1c72d9744afb475c050e2b3eaca1cbd407b525a9b33f83a87a",
+      "git_mode": "100644"
+    },
+    {
+      "path": "git-broker/authorized_keys.example",
+      "sha256": "bd48036ef3b8e12a4e7a8f82a5cd102b02195f422fde6307956b5e510432f8e7",
+      "git_mode": "100644"
+    },
+    {
+      "path": "git-broker/broker.py",
+      "sha256": "0046aceee7da4cb51978682ab213fe7f73d3b086ff0f6add616c02d2de598a6e",
+      "git_mode": "100755"
+    },
+    {
+      "path": "git-broker/config.example.json",
+      "sha256": "450bb1aa87ddd11e8d5f875f0f78ef17db6417b31caa150a566385eb1c500816",
+      "git_mode": "100644"
+    },
+    {
+      "path": "git-broker/post-receive",
+      "sha256": "d9531c3477bfdd57e010033e3c27e07d2ec3eaad8e3d0bc4ffdda111c227ebe5",
+      "git_mode": "100755"
+    },
+    {
+      "path": "git-broker/pre-receive",
+      "sha256": "1746161fbc656600663331c7cd6c9ded529a0e33d082bf157d22511f63ef510e",
+      "git_mode": "100755"
+    },
+    {
+      "path": "git-broker/test_broker.py",
+      "sha256": "c26c94ccf698f844bde93fc4169c755259c7dabfd6694f7fafab2bbd123de217",
+      "git_mode": "100644"
+    },
+    {
+      "path": "install-broker.sh",
+      "sha256": "5224f63a3e9e839410c8d439d487a42247eb7cf7b617a840d1c1d3d2f56a6c4f",
+      "git_mode": "100755"
+    },
+    {
+      "path": "runtime/Dockerfile",
+      "sha256": "90de7b5107b825af3964ab64ab7686790143b248f2df348f6941b71071a92966",
+      "git_mode": "100644"
+    },
+    {
+      "path": "runtime/README.md",
+      "sha256": "9e669b19c6c147dc491e3a22051d1d2b6bab3550558e736ae40dadfa6714cec2",
+      "git_mode": "100644"
+    },
+    {
+      "path": "runtime/bridge.py",
+      "sha256": "c342ea4dda04966a14949c684cccf806dabb431a151d31b87328e8600c02aa15",
+      "git_mode": "100755"
+    },
+    {
+      "path": "runtime/entrypoint.sh",
+      "sha256": "64717890408b2cab9f4099631b7d6d0c65cf7eda7ee828ac6e4c0075d7937572",
+      "git_mode": "100755"
+    },
+    {
+      "path": "runtime/secondmate-transport.md",
+      "sha256": "1e9f0c4883bc1662b63c2861a193ce1f786830a3ab83835a6a72ee8491ee5434",
+      "git_mode": "100644"
+    },
+    {
+      "path": "runtime/test_bridge.py",
+      "sha256": "bbc18e3c55f0f8fb841a9b66c9b7c88ee9d42cb507746583ade879e209fcb8f2",
+      "git_mode": "100644"
+    },
+    {
+      "path": "secondmate.env.example",
+      "sha256": "50257033f0ca297477530aceca96f1d4a8f1a5514fbf81c2d23994eb7ecaeb68",
+      "git_mode": "100644"
+    }
+  ]
+}

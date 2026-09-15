@@ -1,0 +1,19 @@
+# Deployment inputs and state never belong in the source package.
+home/
+secrets/
+state/
+secondmate.env
+.env
+*.sqlite*
+*.db
+*.log
+__pycache__/
+*.py[cod]
+.pytest_cache/
+runtime/treehouse
+runtime/no-mistakes
+git-broker/config.json
+git-broker/authorized_keys
+id_ed25519*
+*.pem
+*.key
