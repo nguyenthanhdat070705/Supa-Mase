@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "parent_id": "firstmate",
+  "base_url": "http://host.docker.internal:8787",
+  "token_file": "/home/nguye/.config/firstmate-control/parent.token"
+}

@@ -1,79 +1,103 @@
-# Isolated team secondmate
+# Firstmate and its team secondmates
 
-This implementation runs the Maycha team secondmate as a persistent Docker
-sidecar using Codex `gpt-5.6-sol` with `xhigh` reasoning and its own
-`MaychaFinance_Bot`. It accepts authorized text requests, keeps its own memory
-and work, and delivers project changes through `sandbox/*` branches and PRs.
-Captain reviews and decides whether to merge. There is no automatic merge or
-knowledge promotion path.
+This package gives the existing Linux firstmate a parent control adapter for
+separate secondmate containers. The current child uses its own Telegram bot,
+Codex `gpt-5.6-sol` with `xhigh` reasoning, and private working memory. Additional
+children receive independent identities, homes, queues and credentials.
 
-The original shell examples in the parent directory remain unchanged. This
-directory contains the separate runtime used for the isolated deployment.
+## Team workflow
+
+1. Captain adds the child bot to an intended group and enables that group using
+   the captain-only onboarding command. Members can send work to that bot.
+2. The child uses the parent-approved runtime configuration and curated skills.
+   Firstmate can also send a correlated task and collect its outcome through
+   the parent client.
+3. Instructions and lessons from team members stay in the child's own memory.
+   Useful lessons become immutable proposals with claims, evidence and a content
+   hash. Captain receives the proposal for review.
+4. Captain chooses the exact proposal and claims to promote. The parent records
+   approval and applies those claims into its own reviewed knowledge. A group
+   message or child credential cannot approve or apply that promotion.
+
+Here, learning means instructions and stored knowledge; this package does not
+fine-tune model weights. Sharing approved configuration and skills does not copy
+the parent's conversations, credentials or entire private memory.
 
 ## Components
 
 | Path | Purpose |
 | --- | --- |
-| `compose.yml` | Separate container, home volume, process/resource limits and host Git gateway alias |
-| `runtime/Dockerfile` | Derive from `firstmate:local`; keep pinned Codex and helper tools outside the home mount |
-| `runtime/entrypoint.sh` | Start one secondmate tmux session and one Telegram poller |
-| `runtime/bridge.py` | Authenticated routing, durable SQLite inbox, verified pane delivery, replies and group discovery |
-| `runtime/secondmate-transport.md` | Agent readiness, reply/completion protocol and direct team-bot communication rules |
-| `git-broker/` | Host-side forced-command Git transport; only sandbox pushes and PR creation |
-| `install-broker.sh` | Reviewed fixed-layout host installer and `--check` validation |
-| `charter-domain.md` | Domain scope, delegation, separate memory and captain approval boundaries |
-| `secondmate.env.example` | Placeholder configuration; all live values stay outside Git |
-| `examples/` | Sanitized Codex, crew dispatch/harness, backend and backlog settings exported from the live home |
-| `SOURCE-MANIFEST.json` | SHA-256 source inventory and required Git executable modes |
+| `parent-control/` | Trusted host API, parent client, immutable reports/proposals, approved knowledge import and child lifecycle controls |
+| `data-access/` | Structured PostgreSQL reads with a restricted role and per-child table/column policy |
+| `runtime/` | Child Telegram intake, durable work queue, Codex session acknowledgment and parent/data clients |
+| `compose.yml` and `instance.example.json` | Separate child container, home, model, tmux identity and resource limits |
+| `charter-domain.md` | Delegation, data access, local learning and captain approval rules |
+| `git-broker/` and `install-broker.sh` | Host-held GitHub credentials; constrained child pushes and PR creation |
+| `examples/` and `secondmate.env.example` | Sanitized configuration templates; no live credentials |
+| `SOURCE-MANIFEST.json` | Published file hashes and Git executable modes |
 
-See [reproduction steps](REPRODUCE.md), the [runtime operator guide](runtime/README.md)
-and the [Git broker operator guide](git-broker/README.md).
+Read the [reproduction guide](REPRODUCE.md),
+[parent adapter guide](parent-control/README.md),
+[data access guide](data-access/README.md),
+[runtime guide](runtime/README.md) and [Git broker guide](git-broker/README.md).
 
-## Isolation and delivery
+## Parent and child boundaries
 
-The agent has its own `/home/nguye/team-sandbox` home, tmux socket and Telegram
-queue. The static `/home/nguye/provisioner` clone seeds this home; production
-firstmate keeps only a human-readable external inventory and does not
-automatically synchronize, route or respawn this service. No primary memory,
-Telegram token, GitHub credential store or Docker socket is mounted in the agent.
+The parent adapter is an explicit container transport. The stock framework's
+remote marker supplies cross-filesystem lifecycle compatibility; this package
+does not pretend that a tmux session is an official Herdr remote session. The
+trusted host registry identifies the actual firstmate and its children.
 
-Captain authority comes from Telegram's verified numeric sender ID. Group
-requests require an explicit allowlist. Minimal group metadata can be discovered
-only from captain messages; discovery does not grant access. Replies remain
-bound to the originating chat, topic and message. Raw Telegram content never
-becomes a shell command: the bridge sends a fixed shell-comment inbox pointer to
-a verified immutable tmux pane.
+The host owns the registry and parent/child credentials. The parent uses a
+scoped client without receiving a Docker socket. The child receives neither
+parent credentials nor a mount of parent memory. Parent tasks, child reports,
+knowledge proposals and approvals have durable identifiers and strict scopes.
 
-The host Git broker retains upstream publishing credentials outside the agent.
-The agent receives a dedicated SSH key with one forced command. Only
-`DemandPlanningMC/demand-planning-maycha` sandbox branches can be published, with
-PRs against `main`. The broker provides no merge, force-push, deletion or arbitrary
-SSH command. A local Git push alone is not proof of upstream PR delivery.
+Captain identity comes from Telegram's numeric sender ID. Group membership is
+enabled explicitly; the configured excluded company group remains forbidden.
+Replies retain their originating chat, topic and message. The runtime registry
+and Telegram transport share the child UID: these are application controls,
+not protection against arbitrary code already running as that same UID.
 
-## Validation and limits
+## Supabase reads
 
-Run the two offline suites from their respective directories:
+Children submit structured table, filter, ordering and aggregate requests to
+the host API. They receive no database password or service-role key, and no raw
+SQL or RPC endpoint. The host connects directly to the selected Supabase
+PostgreSQL database using an audited restricted role.
 
-```sh
-cd runtime
-python3 -m unittest -v test_bridge.py
-cd ../git-broker
-python3 -m unittest -v test_broker.py
-```
+Every request checks the approved schema metadata, opens a read-only
+transaction and enforces time, row and response-size limits. Tables containing
+credentials, unrestricted configuration, bot state, system data, unreviewed
+views or executable dependencies are not enrolled by default. New tables and
+schema changes require a reviewed policy update. Large tables support bounded
+keyset pagination and server-side aggregates.
 
-The suites exercise identity, routing, persistence, delivery races, group
-discovery, real local Git ref rules and simulated upstream PR publication. They
-do not contact Telegram, GitHub or a deployment host. Real startup additionally
-requires an agent tool call proving readiness; process identity is not a general
-TUI modal detector. Stop the bridge before interactive terminal maintenance.
+The supplied role/policy SQL and production metadata review are separate from
+installation. Deployment must refuse database access until the actual role,
+RLS policies, credentials and table manifest pass validation. Do not put the
+live manifest, credentials or exported business rows in this public repository.
 
-SQLite commits preserve received updates and failed work. tmux and Telegram
-cannot share a transaction with SQLite, so an ambiguous delivery remains queued
-for explicit operator reconciliation instead of automatic replay. Only text
-messages are supported. Remote branch protection remains a separate control.
+## Delivery and recovery
 
-## Source changes
+The runtime binds readiness to the exact Codex thread and its startup turn.
+Delivery is acknowledged only when that thread records the actual inbox pointer
+as a new user message. It waits for startup completion, delays Enter after paste
+and retains uncertain deliveries for reconciliation. It never automatically
+replays an uncertain request. Telegram delivery also has an uncertainty window;
+successful local state alone is not proof of an upstream message or Git push.
 
-Commit and push source changes on a dedicated branch, open a PR against
-`maycha-custom`, and ask Mac to review and merge. Never auto-merge. Publishing
-this source package does not change or redeploy the running container.
+Run all component unit suites and the disposable PostgreSQL integration fixture
+described in their guides before rollout. A live rollout also needs a bot-group
+request, parent-to-child task, captain proposal notification and reviewed
+knowledge promotion check. Offline tests cannot prove those external effects.
+
+## Publishing and rollout
+
+All source changes go to a dedicated GitHub branch and PR against
+`maycha-custom`. Ask Mac to review and merge. Do not auto-merge. Publishing a PR
+does not deploy it. Reconcile active/uncertain work before upgrading a live child
+and record the deployed source revision after the approved rollout.
+
+All live services and validation containers run on the Linux server. The desktop
+is only the control and source preparation environment.
