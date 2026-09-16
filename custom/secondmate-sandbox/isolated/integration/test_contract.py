@@ -7,6 +7,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import Mock
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +20,8 @@ from bridge import Queue, Settings, atomic_json
 from control_client import ControlClient, sync_brain
 from errors import Refusal as ChildRefusal
 from knowledge import propose
+from receiver import Receiver
+from test_bridge import message
 
 
 class ComponentContractTests(unittest.TestCase):
@@ -35,7 +38,7 @@ class ComponentContractTests(unittest.TestCase):
             path.write_text(letter * 48)
             path.chmod(0o600)
             paths[identity] = path
-        self.cfg = Settings(self.child_home, 42, frozenset(),
+        self.cfg = Settings(self.child_home, 42, frozenset([-100]),
                             control_token_file=paths['child'])
         self.config = {
             'version': 1, 'database': str(self.root / 'control.sqlite3'),
@@ -163,6 +166,90 @@ class ComponentContractTests(unittest.TestCase):
                          {'model': 'gpt-5.6-sol', 'reasoning_effort': 'xhigh'})
         self.assertEqual((self.child_home / '.agents/skills/fixture-skill/SKILL.md').read_text(),
                          'Use only synthetic fixture records.\n')
+
+    def advisory_fixture(self):
+        queue = Queue(self.cfg)
+        self.addCleanup(queue.db.close)
+        target = Mock()
+        target.prepare_delivery.side_effect = lambda uid: {'attempt_id': str(uid)}
+        target.await_ack.return_value = target.accepted.return_value = True
+        queue.ingest({'update_id': 101, 'message': message(
+            sender=23, chat=-100, kind='supergroup', topic=77)})
+        queue.deliver_one(target)
+        item = queue.escalations.start(101, 'needs-analysis', {
+            'question': 'Explain the conflicting synthetic observations.',
+            'context': 'Advisory analysis only.', 'evidence': []}, target, Mock())
+        queue.escalations.flush_request(self.child)
+        return queue, target, item['escalation_id']
+
+    def advisory_receiver(self):
+        state = self.root / 'receiver'
+        state.mkdir()
+        handler = self.root / 'handler.py'
+        handler.write_text("""import hashlib, json, pathlib, sys, uuid
+envelope = json.load(sys.stdin)
+request = envelope['case']['request']
+counter = pathlib.Path('handler-calls')
+counter.write_text(counter.read_text() + '1' if counter.exists() else '1')
+response = {
+    'schema': 'escalation-response.v1', 'response_id': str(uuid.uuid4()),
+    'escalation_id': request['escalation_id'], 'request_sha256': request['sha256'],
+    'claim_id': envelope['dispatch_id'], 'body': 'Verified synthetic guidance.', 'evidence': []}
+response['sha256'] = hashlib.sha256(json.dumps(response, sort_keys=True,
+    separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
+json.dump({'schema': 'firstmate-advisory-receipt.v1',
+    'dispatch_id': envelope['dispatch_id'], 'accepted': True, 'response': response}, sys.stdout)
+""")
+        receiver = Receiver(self.parent, state, {'receiver_id': 'windows-fixture',
+            'handler_argv': [sys.executable, str(handler)],
+            'handler_cwd': str(self.root), 'handler_timeout_seconds': 5})
+        self.addCleanup(receiver.db.close)
+        return receiver
+
+    def test_offline_parent_then_real_http_receiver_and_same_topic_resume_once(self):
+        queue, target, eid = self.advisory_fixture()
+        self.assertEqual(queue.row(101)['status'], 'waiting_parent')
+        # Local firstmate is absent; the durable host already owns the dossier.
+        self.assertEqual(len(self.parent.call('GET', '/v1/escalations')['cases']), 1)
+        queue.ingest({'update_id': 102, 'message': message(
+            sender=23, chat=-100, kind='supergroup', topic=88)})
+        self.assertTrue(queue.deliver_one(target))
+        queue.set_status(102, 'completed')
+        receiver = self.advisory_receiver()
+        self.assertEqual(receiver.receive_once()['replied'], 1)
+        receiver.receive_once()
+        self.assertEqual((self.root / 'handler-calls').read_text(), '1')
+        queue.escalations.poll_results(self.child)
+        rid = queue.escalations.get(eid)['resume_update']
+        self.assertEqual(queue.row(rid)['status'], 'resume_held')
+        self.assertFalse(queue.deliver_one(target))
+        queue.escalations.acknowledge(self.child)
+        self.assertTrue(queue.deliver_one(target))
+        queue.escalations.poll_results(self.child)
+        envelope = json.loads(queue.row(rid)['envelope'])
+        self.assertEqual(envelope['routing']['chat_id'], -100)
+        self.assertEqual(envelope['routing']['message_thread_id'], 77)
+        self.assertFalse(envelope['routing']['approval'])
+        self.assertEqual(envelope['parent_response']['body'], 'Verified synthetic guidance.')
+        self.assertEqual(queue.db.execute(
+            "SELECT COUNT(*) FROM updates WHERE origin='escalation'").fetchone()[0], 1)
+        self.assertEqual(self.app.db.execute('SELECT COUNT(*) FROM approvals').fetchone()[0], 0)
+
+    def test_real_host_cancellation_before_ack_suppresses_staged_answer(self):
+        queue, target, eid = self.advisory_fixture()
+        receiver = self.advisory_receiver()
+        receiver.receive_once()
+        queue.escalations.poll_results(self.child)
+        row = queue.escalations.get(eid)
+        self.child.request('POST', '/v1/children/team-sandbox/escalations/' + eid + '/cancel',
+            {'request_sha256': row['request_sha256'], 'reason': 'Task withdrawn.'})
+        with self.assertRaises(ChildRefusal):
+            queue.escalations.acknowledge(self.child)
+        self.assertFalse(queue.deliver_one(target))
+        queue.escalations.poll_results(self.child)
+        queue.escalations.acknowledge(self.child)
+        self.assertFalse(queue.deliver_one(target))
+        self.assertEqual(queue.row(101)['status'], 'cancelled')
 
 
 if __name__ == '__main__':

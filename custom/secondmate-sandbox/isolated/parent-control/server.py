@@ -23,6 +23,7 @@ import uuid
 from common import (DESTINATIONS, KINDS, MAX_BODY, Refusal, canonical, digest,
                     identifier, text, uuid_id, validate_brain, validate_proposal)
 from lifecycle import Lifecycle
+from escalations import Escalations
 
 
 def protected_path(path, *, secret=False, directory=False, allow_missing=False):
@@ -157,6 +158,7 @@ class Application:
             operation_id TEXT PRIMARY KEY, child_id TEXT NOT NULL, digest TEXT NOT NULL,
             payload TEXT NOT NULL, state TEXT NOT NULL, result TEXT);
         ''')
+        self.escalations = Escalations(self)
         if recover_interrupted:
             # After a proven exclusive service restart, interrupted attempts are
             # unknown. Runtime enqueue dedupes an explicit same-ID retry.
@@ -381,6 +383,10 @@ class Application:
             raise Refusal('Expected a JSON object.')
         parsed = urlsplit(target)
         path, query = parsed.path, parse_qs(parsed.query)
+        if path == '/v1/escalations' or '/escalations' in path:
+            if query:
+                raise Refusal('Escalation routes do not accept query overrides.')
+            return self.escalations.handle(method, path, principal, payload)
         if method == 'GET' and path == '/v1/children':
             if principal['role'] != 'parent':
                 raise Refusal('Only a parent lists its children.', 403, 'forbidden')

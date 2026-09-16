@@ -15,6 +15,34 @@ Fixed upstream: `DemandPlanningMC/demand-planning-maycha`, PR base `main`. Chang
 
 ## Operator installation
 
+Provision a dedicated GitHub credential on the Linux host at
+`/etc/secondmate-git-credentials/github-token`, root-owned mode 0600 in a
+root-owned mode 0700 directory. Use the operator's secret provisioning channel;
+never include the token in source, argv, chat or terminal output. The supplied
+`token_helper.py` rejects unsafe ownership, writable ancestors, links, extra
+arguments and malformed values. The no-argument sudo wrapper invokes it with
+isolated Python. It does not contact or depend on a running firstmate container.
+Its output is captured only by the trusted broker.
+
+For an existing installation of the older Docker-based credential wrapper,
+the installer deliberately refuses a conflicting manifest/helper. During an
+approved maintenance window, block new broker SSH sessions, preserve the old
+root-owned helper and installation manifest for rollback, install the reviewed
+`token_helper.py` into the existing root-owned code directory (mode 0644),
+and replace only the wrapper's final command with:
+
+```sh
+exec /usr/bin/python3 -I /usr/local/libexec/secondmate-git-broker/token_helper.py
+```
+
+Keep its no-argument check and mode 0755. Update only the installation manifest's
+`sources` mapping to the exact reviewed installer `EXPECTED` mapping; preserve
+the account, public key and upstream. The installer checks the complete record,
+all files and SSH restrictions on `--check`. Restore broker access only after
+that check and a constrained fetch succeed. Do not remove/recreate its repository,
+account, SSH key, refs or publication state. Provisioning this independent
+credential and applying this migration are rollout steps, not PR side effects.
+
 1. Provision the dedicated account with a usable login shell for OpenSSH forced commands, **no password login**, and no unrelated authorized keys. Use an SSH `Match User sm-git` block to set `PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitTTY no`, `AllowTcpForwarding no`, `X11Forwarding no`, `PermitTunnel no`, `PermitUserEnvironment no`; do not accept client-controlled environment variables for this account. Disable `~/.ssh/rc` via the `restrict` key option and keep `.ssh` / `authorized_keys` operator-controlled. `restrict` requires a sufficiently recent OpenSSH.
 2. Install `broker.py` at `/usr/local/libexec/secondmate-git-broker/broker.py`, mode 0755, root-owned. Install the fixed config at the path above, mode 0644 or root:broker 0640. Its parent directories and credential helper must also be operator-controlled.
 3. Initialize `/var/lib/secondmate-git-broker/repo.git` as a bare repository and seed the approved main source/history through an operator-controlled read/pull process. Give `sm-git` write access to `objects/`, `refs/`, and `logs/` if used. Keep the repository root, `config`, `HEAD`, `hooks/`, and `packed-refs` **root-owned and not writable by sm-git**; otherwise a directory owner could replace trusted hooks. Parent directories must not be broker-writable. Do not run `git gc`/`pack-refs` as the broker; operator maintenance must preserve these ownership rules. The broker adds this exact repository to Git `safe.directory` for each invocation.

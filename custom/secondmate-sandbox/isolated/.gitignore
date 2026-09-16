@@ -22,5 +22,6 @@ id_ed25519*
 instance.json
 parent-control/config.json
 parent-control/client.json
+parent-control/receiver.json
 parent-control/operator.json
 data-access/config.json

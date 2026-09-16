@@ -40,10 +40,11 @@ overrides. Deploy this directory there if using the installer unchanged. Retarge
 those constants only through a separately reviewed code change.
 
 The host requires Docker/Compose, OpenSSH server, Python 3.10+, Git, GitHub CLI,
-sudo and systemd. `firstmate:local` must exist. Its container must expose the
-operator-authorized `DemandPlanningMC` GitHub account to the fixed root-only
-credential helper installed by `install-broker.sh`; that helper's captured output
-goes only to the host broker. Never run or log the helper interactively.
+sudo and systemd. The base image `firstmate:local` must exist, but no running
+firstmate container is required. Provision the separate root-owned GitHub
+credential described in [git-broker/README.md](git-broker/README.md); the fixed
+helper installed by `install-broker.sh` reads only that Linux host secret and
+its captured output goes only to the host broker. Never run or log it interactively.
 
 Keep the source tree and the runtime staging tree distinct. Stage `compose.yml`,
 `runtime/`, `git-broker/` and `install-broker.sh` under the fixed deployment root.
@@ -74,7 +75,7 @@ networking. The sandbox receives no unrestricted host SSH key.
 
 Run `install-broker.sh` as root from the reviewed staging layout, then run
 `install-broker.sh --check`. The installer verifies SHA-256 hashes of `broker.py`
-and its two hooks, refuses conflicting preexisting installation paths, creates
+and its two hooks plus the standalone token helper, refuses conflicting preexisting installation paths, creates
 the dedicated `sm-git` account and root-controlled forced command, fetches main,
 and validates effective SSH restrictions before reloading SSH. Its credential
 helper uses only one fixed no-argument privileged call.
@@ -147,10 +148,14 @@ hook trust or fabricate readiness files to skip this step.
 
 Follow [parent-control/README.md](parent-control/README.md) to install the trusted
 host service, fixed parent/child registry, scoped credentials and parent client.
-Use a separate credential for every child. Firstmate receives the parent client
-and its own credential; it does not receive a Docker socket or host shell key.
-Install the collector so proposals and outcomes reach the parent review area.
-Configure the captain proposal notification path and test actual receipt.
+The service remains on Linux; the parent identity represents captain's separately
+installed local firstmate. Use a separate credential for every child. Captain
+connects the portable receiver/client to that local installation with its own
+scoped credential. It receives no Docker socket or unrestricted host shell key.
+Do not install another firstmate agent on Linux or replace captain's local setup.
+The receiver pulls cases when online; normal child work must continue while it
+is offline. Configure report/proposal collection and the captain notification
+path and test actual receipt. See [LOCAL-FIRSTMATE.md](LOCAL-FIRSTMATE.md).
 
 Follow [data-access/README.md](data-access/README.md) to audit and provision the
 restricted database role. This is an explicit operator step, never a startup
@@ -193,6 +198,11 @@ actual Codex input acknowledgment, group/topic reply, group revocation, a
 Supabase read and rejected write/SQL request. Create a harmless knowledge proposal
 and confirm captain notification and that it remains unapproved. Exercise
 promotion with an explicit approval for that exact test proposal and claims.
+
+Verify an independent child task completes while a separate escalation waits for
+the offline local firstmate. Then connect the receiver, return one answer, and
+confirm the correct original task/chat resumes once. Reconnect, cancellation and
+unknown handler outcomes must preserve the no-duplicate and authority boundaries.
 
 For an existing child, inspect active workers and queue state first. Reconcile
 uncertain deliveries and drain or explicitly resolve work before service

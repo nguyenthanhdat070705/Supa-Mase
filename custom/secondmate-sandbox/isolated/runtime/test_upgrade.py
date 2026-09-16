@@ -274,11 +274,12 @@ class UpgradeTests(unittest.TestCase):
     def test_parent_notify_uses_correlated_host_event_not_telegram(self):
         request = self.request()
         row = self.queue.enqueue_parent(request)
+        self.queue.set_status(row["update_id"], "delivered")
         response = self.home / "response.txt"
         response.write_text("Verified result.")
         with patch("bridge.Settings.load", return_value=self.cfg), patch("bridge.ControlClient") as control, \
                 patch("bridge.Telegram", side_effect=AssertionError("must not send Telegram")), \
-                patch("sys.argv", ["bridge.py", "notify", "--update", str(row["update_id"]), "--file", str(response)]), \
+                patch("sys.argv", ["bridge.py", "notify", "--update", str(row["update_id"]), "--file", str(response), "--kind", "done"]), \
                 contextlib.redirect_stdout(io.StringIO()):
             main()
             args = control.return_value.report.call_args.args

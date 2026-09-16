@@ -1,4 +1,9 @@
-# Explicit container parent adapter
+# Linux control service and portable firstmate client
+
+For a user-installed Windows firstmate and independently operating Linux child,
+see [Offline escalation protocol and portable receiver](OFFLINE-ESCALATIONS.md).
+The Linux host remains the durable mailbox; the local parent connects outbound.
+No local firstmate installation or existing Linux firstmate shutdown is performed.
 
 Production `firstmate` owns each configured child's requests, report inbox,
 policy publication and controlled lifecycle. The trusted host service resolves
@@ -250,7 +255,7 @@ reply lookup. It does not bypass report, hold, PR, worktree or unlanded-work gat
 
 ## Validation
 
-`python3 -m unittest -v test_control.py test_binding.py test_storage.py` runs offline tests, including a real
+`python3 -m unittest -v test_control.py test_binding.py test_storage.py test_escalations.py` runs offline tests, including a real
 loopback HTTP parent -> runtime fixture -> child event -> parent inbox roundtrip,
 scope denials, idempotency, unknown delivery, immutable proposals, operator-only
 approvals, selected-claim application, bounded policy export, generation checks,

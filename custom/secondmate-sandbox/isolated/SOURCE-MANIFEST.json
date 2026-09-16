@@ -15,17 +15,22 @@
     },
     {
       "path": ".gitignore",
-      "sha256": "7c29362455327c0174bccebaa518d518b6e88eef27ac87b5102fa1db61e67286",
+      "sha256": "e55ef6c0249c940c1e3c459bec196c0a6ee08fbdea76d08a5e7b0fbabcc51501",
+      "git_mode": "100644"
+    },
+    {
+      "path": "LOCAL-FIRSTMATE.md",
+      "sha256": "0d621f33cc05702a1a37e13fe982dd4c4fe63d94b6457f9d36198a68e47c7289",
       "git_mode": "100644"
     },
     {
       "path": "README.md",
-      "sha256": "fae05f6bf59da03c93e43a2ad8e28cb661a985e0f3de05e2bce3dd0c1f055ff1",
+      "sha256": "dd2ca86198f1eb78ef9f3f883123bc01b4e7f0cd241b2bcb7d64e0253a3cd760",
       "git_mode": "100644"
     },
     {
       "path": "REPRODUCE.md",
-      "sha256": "e0c3a449b6b4c3264b9ba6570321eb7a991384d88cfa4e7838fec68dfb130ed9",
+      "sha256": "be0aaa2f663e945ee59f4bbbc627356e6f99b77fef1040c48491027c1f6f640b",
       "git_mode": "100644"
     },
     {
@@ -35,7 +40,7 @@
     },
     {
       "path": "charter-domain.md",
-      "sha256": "b6c2c2b223d062a665e57499a2a8cc9a67c3a4fab6389109d8432e62b296002b",
+      "sha256": "c470ce722048404fb562ba89e71b7daad9e4590911a90592438c37779f8df022",
       "git_mode": "100644"
     },
     {
@@ -130,7 +135,7 @@
     },
     {
       "path": "git-broker/README.md",
-      "sha256": "7983c6981c695b1c72d9744afb475c050e2b3eaca1cbd407b525a9b33f83a87a",
+      "sha256": "03bf0d10dcdf97d95f78b67d5fabb586725bf074a488a914eaf65a7e2caac977",
       "git_mode": "100644"
     },
     {
@@ -164,8 +169,18 @@
       "git_mode": "100644"
     },
     {
+      "path": "git-broker/test_token_helper.py",
+      "sha256": "58e34b144c0563129ee5ca34470e77c15244a755f3a1d7e82ab16f7b05939fdd",
+      "git_mode": "100644"
+    },
+    {
+      "path": "git-broker/token_helper.py",
+      "sha256": "3170a7a343f383b500a3720fee47984d7e9c0af3b5754ed788fb38d0d34bb993",
+      "git_mode": "100644"
+    },
+    {
       "path": "install-broker.sh",
-      "sha256": "5224f63a3e9e839410c8d439d487a42247eb7cf7b617a840d1c1d3d2f56a6c4f",
+      "sha256": "a13e670eaf43464ca6aa7714f42ff0002d6c0709e982f42af8634345795c1807",
       "git_mode": "100755"
     },
     {
@@ -175,12 +190,17 @@
     },
     {
       "path": "integration/test_contract.py",
-      "sha256": "fa81f274a3c1d26d135f5af7dfce5e0e7165aa39ed85ea5ee485658348fc94fd",
+      "sha256": "9343971ec405e6381affd1687a53c74740a44cf1d02007c2dda2dba5f60ac195",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/OFFLINE-ESCALATIONS.md",
+      "sha256": "5994def2c9d7ab716d832de1ec3c0f651e3e1a5fdef1397410feac63ad422903",
       "git_mode": "100644"
     },
     {
       "path": "parent-control/README.md",
-      "sha256": "36a4f423c5996da6714c22e6f0b8bb1c4b52a359ca61d52441595404f41b0319",
+      "sha256": "5cc5a199f462cc239ca8d9f0cd1c8de76ac2cc266ec4ffccdc29aa61eda621d3",
       "git_mode": "100644"
     },
     {
@@ -209,6 +229,11 @@
       "git_mode": "100644"
     },
     {
+      "path": "parent-control/escalations.py",
+      "sha256": "27398908510a54222591c776e342de75e564961f28e24d1372b358b98ebb5099",
+      "git_mode": "100644"
+    },
+    {
       "path": "parent-control/firstmate-control.service",
       "sha256": "61de73d0a50474918a3048c21c111d891bfd46c92644aa15b905fab54fd42f94",
       "git_mode": "100644"
@@ -224,13 +249,23 @@
       "git_mode": "100644"
     },
     {
+      "path": "parent-control/receiver.example.json",
+      "sha256": "ef032cb6d8105f9f378b7280812b2e5011ef260a24b5a32b1ed019dec173d46c",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/receiver.py",
+      "sha256": "b29648728e349c8e5e893adc06ca15a3716042c92cb5a5235ed61b28839909c7",
+      "git_mode": "100644"
+    },
+    {
       "path": "parent-control/server.example.json",
       "sha256": "64734427c1afbcc0833f35721f2dfc34d064e9debc77ca6edc0041a2a5b38ed3",
       "git_mode": "100644"
     },
     {
       "path": "parent-control/server.py",
-      "sha256": "b603c88bbc3e26fff34af100334922a19eebecd172eaa48a5014ee554b4312a5",
+      "sha256": "c1e40e236bf14efd81949f2cf976d50976b248adad96550ffd20bb0e7c738ce8",
       "git_mode": "100644"
     },
     {
@@ -241,6 +276,11 @@
     {
       "path": "parent-control/test_control.py",
       "sha256": "85bd2afaa4b1730f939892a9c6e6c6374a2ef0c1189345fb80612db116658cae",
+      "git_mode": "100644"
+    },
+    {
+      "path": "parent-control/test_escalations.py",
+      "sha256": "a5ce93444ebc132abeb5d81d967cffdecf3074d7a3e3e7d42e67257d20ed6321",
       "git_mode": "100644"
     },
     {
@@ -255,17 +295,17 @@
     },
     {
       "path": "runtime/README.md",
-      "sha256": "24db8ee19b015d8ca8def704b8ecb3041824d8a544303bdef28b5e38e577c201",
+      "sha256": "faf520390c1125ecd23089c29f952a60195b1ddf7b843a38810254dd18a8ecd4",
       "git_mode": "100644"
     },
     {
       "path": "runtime/bridge.py",
-      "sha256": "0a7524d461cb2bcb4a8cdd2c8983a99e3b802453a6a9831de5991a9251d80056",
+      "sha256": "b19e612ba0b4dc7efd8e768619b5f5e572edee7f8498a2718cf71997f40da09f",
       "git_mode": "100755"
     },
     {
       "path": "runtime/control_client.py",
-      "sha256": "713a4c4e89527da4b5a21bab5814fd9e5c9505f904fa0c9e15ee526351673595",
+      "sha256": "a34d33a8dc99d0d14306f9230ca59d636f60d31177315a978993a8c81ff1d38a",
       "git_mode": "100644"
     },
     {
@@ -279,13 +319,18 @@
       "git_mode": "100644"
     },
     {
+      "path": "runtime/escalation.py",
+      "sha256": "a4fc43f59f0061dc9808bcab4f12c23080456cdb140acb2f485a14d3b0d06cf7",
+      "git_mode": "100644"
+    },
+    {
       "path": "runtime/knowledge.py",
       "sha256": "a5b2b08ce0abd89c1186839ec9b8b294fe35f3a93cd42690f27b29a40562d8dd",
       "git_mode": "100644"
     },
     {
       "path": "runtime/secondmate-transport.md",
-      "sha256": "13e1655f6ed2933ba19078e0c9a7616124c78965a291e8c1729f41f1ed0cc610",
+      "sha256": "246a1f83c762f734ca2cf867b2b957ef270fd00d1b8fb53448033ca3bd63dcef",
       "git_mode": "100644"
     },
     {
@@ -299,8 +344,13 @@
       "git_mode": "100644"
     },
     {
+      "path": "runtime/test_escalation.py",
+      "sha256": "0056f6bb67881aeb14e1673b57f066db1c505e67fe57666d7e31fdfc5da195d6",
+      "git_mode": "100644"
+    },
+    {
       "path": "runtime/test_upgrade.py",
-      "sha256": "109ea5388c427dc90ae84016e62dd78b3d219ec8330c133d0c3184e356651c0d",
+      "sha256": "137cc1eb321d0f4da4ff3e3f9bdaaff589bb941a172df1c6e8b2019733426371",
       "git_mode": "100644"
     },
     {

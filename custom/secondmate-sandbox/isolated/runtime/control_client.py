@@ -29,8 +29,9 @@ def digest(value):
 
 
 class ControlClient:
-    def __init__(self, cfg):
+    def __init__(self, cfg, timeout=30):
         self.cfg = cfg
+        self.timeout = timeout
         parsed = urllib.parse.urlsplit(cfg.parent_url)
         if (parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password
                 or parsed.query or parsed.fragment or parsed.path not in ("", "/")):
@@ -47,7 +48,7 @@ class ControlClient:
                                          data=canonical(payload) if payload is not None else None,
                                          headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"})
         try:
-            with urllib.request.build_opener(NoRedirect()).open(request, timeout=30) as response:
+            with urllib.request.build_opener(NoRedirect()).open(request, timeout=self.timeout) as response:
                 body = response.read(4 * 1024 * 1024 + 1)
             if len(body) > 4 * 1024 * 1024:
                 raise Refusal("Parent control response exceeded size limit")
