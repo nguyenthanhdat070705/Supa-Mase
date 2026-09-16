@@ -11,20 +11,22 @@ services:
     init: true
     tty: true
     stdin_open: true
-    working_dir: /home/nguye/team-sandbox
+    working_dir: /home/nguye
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file:
       - ./secondmate.env
     environment:
       HOME: /home/nguye
-      FM_HOME: /home/nguye/team-sandbox
-      SM_EXPECTED_BOT_USERNAME: MaychaFinance_Bot
+      SM_INSTANCE_FILE: /opt/secondmate/instance.json
       TZ: Asia/Ho_Chi_Minh
     volumes:
       - ./home:/home/nguye
       - ./runtime:/opt/secondmate:ro
+      - ./instance.json:/opt/secondmate/instance.json:ro
+      - ./data-access/data_client.py:/opt/secondmate/data_client.py:ro
       - ./secrets/bot-token:/run/secrets/secondmate-bot-token:ro
+      - ./secrets/control-token:/run/secrets/secondmate-control-token:ro
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     pids_limit: 512

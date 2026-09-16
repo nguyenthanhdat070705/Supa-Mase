@@ -29,6 +29,7 @@ STAGE = Path('/home/dat/team-sandbox/git-broker')
 PUBKEY = Path('/home/dat/team-sandbox/home/.ssh/id_ed25519.pub')
 UPSTREAM = 'https://github.com/DemandPlanningMC/demand-planning-maycha.git'
 EXPECTED = {
+    'token_helper.py': '3170a7a343f383b500a3720fee47984d7e9c0af3b5754ed788fb38d0d34bb993',
     'broker.py': '0046aceee7da4cb51978682ab213fe7f73d3b086ff0f6add616c02d2de598a6e',
     'pre-receive': '1746161fbc656600663331c7cd6c9ded529a0e33d082bf157d22511f63ef510e',
     'post-receive': 'd9531c3477bfdd57e010033e3c27e07d2ec3eaad8e3d0bc4ffdda111c227ebe5',
@@ -146,7 +147,7 @@ def ssh_effective():
         fail('A trusted SSH CA could admit unrelated keys.')
 
 def main():
-    for tool in ['/usr/bin/git', '/usr/bin/gh', '/usr/bin/docker', '/usr/bin/sudo',
+    for tool in ['/usr/bin/git', '/usr/bin/gh', '/usr/bin/python3', '/usr/bin/sudo',
                  '/usr/sbin/sshd', '/usr/sbin/visudo', '/usr/sbin/useradd', '/usr/bin/systemctl']:
         if not os.access(tool, os.X_OK):
             fail('Missing required executable: ' + tool)
@@ -174,6 +175,9 @@ def main():
     record = (json.dumps({'schema': 1, 'account': ACCOUNT, 'sources': EXPECTED,
                           'public_key': public_key, 'upstream': UPSTREAM},
                          sort_keys=True, indent=2) + '\n').encode()
+    # Require the separate host secret before changing installation state.
+    # Evaluate reviewed, hash-checked helper source with captured output only.
+    run(['/usr/bin/python3', '-I', '-'], input=sources['token_helper.py'])
     existing = MANIFEST.exists() or MANIFEST.is_symlink()
     if existing:
         trusted(BASE, directory=True, exact_mode=0o755)
@@ -218,8 +222,9 @@ def main():
         directory(path)
     directory(STATE, user.pw_uid, 0o700)
     file(CODE / 'broker.py', sources['broker.py'], 0o755)
+    file(CODE / 'token_helper.py', sources['token_helper.py'], 0o644)
     helper = (b'#!/bin/sh\nset -eu\n[ "$#" -eq 0 ] || exit 64\n'
-              b'exec /usr/bin/docker exec firstmate gh auth token --user DemandPlanningMC\n')
+              b'exec /usr/bin/python3 -I /usr/local/libexec/secondmate-git-broker/token_helper.py\n')
     file(HELPER, helper, 0o755)
     config = {'repository': str(REPO), 'state_dir': str(STATE),
               'credential_command': ['/usr/bin/sudo', '-n', str(HELPER)]}

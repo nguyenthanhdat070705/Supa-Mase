@@ -1,0 +1,14 @@
+{
+  "approval_id": "4b2044c6-3b34-4d1a-993b-233d57d12468",
+  "proposal_id": "8e172ae4-82e9-4563-b88b-18f153981ef8",
+  "version": 1,
+  "sha256": "REPLACE_WITH_EXACT_REVIEWED_PROPOSAL_SHA256",
+  "selected_claims": ["claim-1"],
+  "destination": "data/learnings.md",
+  "approval_reference": {
+    "captain_user_id": 123456789,
+    "source": "verified-captain-conversation",
+    "reference": "REPLACE_WITH_THE_ACTUAL_CAPTAIN_MESSAGE_REFERENCE",
+    "quoted_approval": "REPLACE_WITH_MACS_ACTUAL_APPROVAL_OF_THIS_HASH_CLAIMS_AND_DESTINATION"
+  }
+}

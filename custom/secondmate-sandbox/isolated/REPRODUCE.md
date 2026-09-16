@@ -1,9 +1,9 @@
 # Reproduce the isolated deployment
 
-These are manual operator steps for the fixed deployment, not a new provisioning
-framework. Review all source before installing. They reproduce the architecture
-and launch configuration; the local base image and apt packages are not recorded
-as a bit-for-bit image lock.
+These are operator steps for the existing Linux deployment and its parent
+adapter upgrade. Review and merge the source PR before production rollout.
+The local base image and apt packages are not a bit-for-bit image lock.
+Use the component guides for current configuration schemas and commands.
 
 ## Recorded inputs
 
@@ -40,10 +40,11 @@ overrides. Deploy this directory there if using the installer unchanged. Retarge
 those constants only through a separately reviewed code change.
 
 The host requires Docker/Compose, OpenSSH server, Python 3.10+, Git, GitHub CLI,
-sudo and systemd. `firstmate:local` must exist. Its container must expose the
-operator-authorized `DemandPlanningMC` GitHub account to the fixed root-only
-credential helper installed by `install-broker.sh`; that helper's captured output
-goes only to the host broker. Never run or log the helper interactively.
+sudo and systemd. The base image `firstmate:local` must exist, but no running
+firstmate container is required. Provision the separate root-owned GitHub
+credential described in [git-broker/README.md](git-broker/README.md); the fixed
+helper installed by `install-broker.sh` reads only that Linux host secret and
+its captured output goes only to the host broker. Never run or log it interactively.
 
 Keep the source tree and the runtime staging tree distinct. Stage `compose.yml`,
 `runtime/`, `git-broker/` and `install-broker.sh` under the fixed deployment root.
@@ -74,7 +75,7 @@ networking. The sandbox receives no unrestricted host SSH key.
 
 Run `install-broker.sh` as root from the reviewed staging layout, then run
 `install-broker.sh --check`. The installer verifies SHA-256 hashes of `broker.py`
-and its two hooks, refuses conflicting preexisting installation paths, creates
+and its two hooks plus the standalone token helper, refuses conflicting preexisting installation paths, creates
 the dedicated `sm-git` account and root-controlled forced command, fetches main,
 and validates effective SSH restrictions before reloading SSH. Its credential
 helper uses only one fixed no-argument privileged call.
@@ -112,8 +113,13 @@ can create an empty child working directory; seed before normal launch or use a
 one-off container with working directory `/home/nguye/provisioner` and an
 operator shell entrypoint. Do not run the secondmate service entrypoint while
 seeding. Copy `runtime/secondmate-transport.md` into the seeded child's `data/`.
-Keep its `.fm-secondmate-home` marker equal to `team-sandbox` and its parent
-binding directed at the static controller, not production firstmate.
+Keep its `.fm-secondmate-home` marker equal to the configured instance identity.
+The static provisioner is a seed source only. Before normal startup, use the
+reviewed binding helper in [parent-control/](parent-control/README.md) to record
+the actual firstmate and configure the stock cross-filesystem `route=remote`
+marker. Do not fabricate a local launch record or register this tmux transport
+as a stock Herdr session. The former local provisioner marker lacked the launch
+metadata required by worker teardown and must be migrated during the upgrade.
 
 ## 4. Independent Codex configuration
 
@@ -123,8 +129,9 @@ history, hooks or configuration. Copy the supplied sanitized
 `examples/codex.config.toml` to the separate `home/.codex/config.toml`. It records
 the model/effort, child project trust and reviewed settings without authentication.
 
-Copy the exact exported examples to their matching filenames in the seeded
-child's private `config/` directory:
+For initial seeding, copy the exported examples to matching filenames in the
+child's private `config/` directory. Subsequent approved settings and curated
+skills come through the parent adapter's versioned brain export:
 
 - `examples/crew-dispatch.json` to `config/crew-dispatch.json`;
 - `examples/crew-harness` to `config/crew-harness`;
@@ -137,7 +144,32 @@ reconstruct routing from memory or import primary memory/backlog. Review any req
 approvals interactively before accepting Telegram input. Do not copy primary
 hook trust or fabricate readiness files to skip this step.
 
-## 5. Start and verify
+## 5. Install the parent and data adapters
+
+Follow [parent-control/README.md](parent-control/README.md) to install the trusted
+host service, fixed parent/child registry, scoped credentials and parent client.
+The service remains on Linux; the parent identity represents captain's separately
+installed local firstmate. Use a separate credential for every child. Captain
+connects the portable receiver/client to that local installation with its own
+scoped credential. It receives no Docker socket or unrestricted host shell key.
+Do not install another firstmate agent on Linux or replace captain's local setup.
+The receiver pulls cases when online; normal child work must continue while it
+is offline. Configure report/proposal collection and the captain notification
+path and test actual receipt. See [LOCAL-FIRSTMATE.md](LOCAL-FIRSTMATE.md).
+
+Follow [data-access/README.md](data-access/README.md) to audit and provision the
+restricted database role. This is an explicit operator step, never a startup
+side effect. Generate the private table/column manifest after validating RLS,
+effective permissions and executable dependencies. Keep database credentials
+only on the trusted host. Do not mount the application's administrator `.env`
+or a Supabase service-role key into a child.
+
+Create the per-instance manifest and child control-client configuration from
+the supplied examples. Match the fixed container, home and identity in the host
+registry. Export and synchronize an approved parent configuration/skill snapshot.
+Keep the existing child's requested Sol/xhigh setting unless captain changes it.
+
+## 6. Start and verify
 
 Start only the secondmate service with `docker compose up -d secondmate`. The
 entrypoint starts `team-sandbox:0.0` on tmux socket `secondmate`; it runs no
@@ -154,13 +186,26 @@ should pass through durable intake, actual agent handling, bound Telegram reply,
 and completion. A later operator TUI modal can retain the same process identity,
 so stop the bridge before interactive maintenance.
 
-For groups, have captain address the bot in the intended group. Inspect the
-minimal `pending_group_candidates`, verify group intent and bot membership,
-explicitly configure its numeric ID in the private env file, and recreate only
-the secondmate service. Use a fresh request for group/topic reply verification;
-ignored onboarding messages are not replayed. Never run another getUpdates
-consumer against this bot.
+For groups, have captain add and enable the bot using the runtime guide's
+captain-only commands. The initial environment allowlist is imported once;
+subsequent onboarding and revocation use durable runtime state. Keep the
+explicitly excluded company group forbidden. Use a fresh request for group/topic
+reply verification; ignored onboarding messages are not replayed. Never run
+another getUpdates consumer against this bot.
 
-Keep production firstmate's record as a human-readable external-sandbox
-inventory. Do not add an active local routing entry that would auto-sync,
-auto-respawn, or import memory from this independently managed container.
+Verify a parent task and correlated child outcome, startup turn completion,
+actual Codex input acknowledgment, group/topic reply, group revocation, a
+Supabase read and rejected write/SQL request. Create a harmless knowledge proposal
+and confirm captain notification and that it remains unapproved. Exercise
+promotion with an explicit approval for that exact test proposal and claims.
+
+Verify an independent child task completes while a separate escalation waits for
+the offline local firstmate. Then connect the receiver, return one answer, and
+confirm the correct original task/chat resumes once. Reconnect, cancellation and
+unknown handler outcomes must preserve the no-duplicate and authority boundaries.
+
+For an existing child, inspect active workers and queue state first. Reconcile
+uncertain deliveries and drain or explicitly resolve work before service
+replacement. Preserve the queue, group registry and child memory. Record the
+source commit, service version, checks and rollback revision in the private
+deployment record. Never reset the live queue to make an upgrade pass.

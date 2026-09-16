@@ -1,0 +1,15 @@
+{
+  "schema": "secondmate-instance.v1",
+  "child_id": "team-sandbox",
+  "parent_id": "firstmate",
+  "fm_home": "/home/nguye/team-sandbox",
+  "tmux_socket": "secondmate",
+  "tmux_target": "team-sandbox:0.0",
+  "expected_bot_username": "MaychaFinance_Bot",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "xhigh",
+  "inherit_model": true,
+  "excluded_group_ids": [],
+  "parent_url": "http://host.docker.internal:8787",
+  "control_token_file": "/run/secrets/secondmate-control-token"
+}

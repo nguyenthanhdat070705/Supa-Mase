@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "parent_id": "firstmate",
+  "receiver_id": "mac-windows",
+  "base_url": "https://CONTROL-HOST-PRIVATE-NAME:8787",
+  "token_file": "C:/Users/YOUR-USER/.config/firstmate-control/parent.token",
+  "handler_argv": [],
+  "handler_cwd": "C:/Users/YOUR-USER/firstmate",
+  "handler_timeout_seconds": 60
+}
