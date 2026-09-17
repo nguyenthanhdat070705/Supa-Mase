@@ -547,6 +547,10 @@ class AdministrationTests(unittest.TestCase):
             docker=DOCKER, runner=self.docker, popen=self.docker.popen,
             secret_values=(CONFIG_SECRET,),
         )
+        # Never let unit-test recovery inspect a real production backup tree.
+        # This matters on Linux hosts where /var/lib/firstmate-control exists
+        # and is intentionally unreadable to the unprivileged test user.
+        self.admin.backup_root = self.root / 'backups'
         self.config = {
             'version': 1,
             'database': str(self.root / 'control.sqlite3'),
@@ -1867,6 +1871,7 @@ class AdministrationTests(unittest.TestCase):
                 total=100 * GIB, used=90 * GIB, free=10 * GIB),
             popen=lambda *_args, **_kwargs: self.fail('tar process must not start'),
         )
+        admin.backup_root = self.root / 'storage-guard-backups'
         operation_id = str(uuid.uuid4())
         with patch.object(Path, 'mkdir') as mkdir, patch('administration.os.open') as os_open:
             self.refusal(
