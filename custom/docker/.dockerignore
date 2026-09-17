@@ -2,6 +2,7 @@
 # mounted at runtime, never baked into the image.
 state/
 secrets/
+.env
 firstmate-migration-*.tar.gz
 firstmate-migration-*.tar.gz.gpg
 *.log

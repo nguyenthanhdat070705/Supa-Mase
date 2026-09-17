@@ -6,10 +6,13 @@ import argparse
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
+import ipaddress
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
+import socket
+import shutil
 import sqlite3
 import ssl
 import stat
@@ -22,6 +25,7 @@ import uuid
 
 from common import (DESTINATIONS, KINDS, MAX_BODY, Refusal, canonical, digest,
                     identifier, text, uuid_id, validate_brain, validate_proposal)
+from administration import Administration
 from lifecycle import Lifecycle
 from escalations import Escalations
 
@@ -107,13 +111,17 @@ class DockerExecutor:
 
 
 class Application:
-    def __init__(self, config, tokens, executor=None, data_service=None, lifecycle=None, recover_interrupted=False):
+    def __init__(self, config, tokens, executor=None, data_service=None, lifecycle=None,
+                 administration=None, recover_interrupted=False):
         if config.get('version') != 1:
             raise Refusal('Unsupported operator configuration version.')
         self.config, self.tokens = config, tokens
         self.parents = config.get('parents', {})
         self.children = config.get('children', {})
         self.operators = config.get('operators', {})
+        if (not isinstance(self.parents, dict) or not isinstance(self.children, dict)
+                or not isinstance(self.operators, dict)):
+            raise Refusal('Authority registries must be explicit objects.')
         containers = set()
         for child_id, child in self.children.items():
             identifier(child_id)
@@ -124,16 +132,38 @@ class Application:
                 raise Refusal('Each child must own a distinct fixed container.')
             containers.add(child['container'])
             home = child.get('home', '')
-            if not isinstance(home, str) or not home.startswith('/') or '..' in home.split('/') or '\x00' in home:
+            if (not isinstance(home, str) or not home.startswith('/') or '..' in home.split('/')
+                    or '\x00' in home or any(ord(character) < 32 for character in home)
+                    or PurePosixPath(home).as_posix() != home):
                 raise Refusal('Child home must be a fixed absolute path.')
             if not re.fullmatch(r'[0-9]+:[0-9]+', child.get('exec_user', '1000:1000')):
                 raise Refusal('Child execution identity must be a fixed UID:GID.')
+        for operator_id, operator in self.operators.items():
+            identifier(operator_id)
+            if not isinstance(operator, dict):
+                raise Refusal('Operator authority must be an explicit object.')
+            scoped_children = operator.get('children')
+            if (not isinstance(scoped_children, list) or not scoped_children
+                    or any(not isinstance(child_id, str) or child_id not in self.children
+                           for child_id in scoped_children)
+                    or len(scoped_children) != len(set(scoped_children))
+                    or ('allow_recovery' in operator and type(operator['allow_recovery']) is not bool)):
+                raise Refusal('Operator child scope must be a distinct list of registered child IDs.')
         self.executor = executor or DockerExecutor()
         self.lifecycle = lifecycle or Lifecycle()
         self.child_locks = {child_id: threading.RLock() for child_id in self.children}
         self.data_service = data_service
         self.lock = threading.RLock()
-        self.db = sqlite3.connect(config['database'], check_same_thread=False)
+        self.database_path = Path(config['database'])
+        self.database_max_bytes = config.get('database_max_bytes', 512 * 1024**2)
+        self.database_reserve_bytes = config.get('database_reserve_bytes', 2 * 1024**3)
+        if (type(self.database_max_bytes) is not int
+                or not 256 * 1024**2 <= self.database_max_bytes <= 4 * 1024**3):
+            raise Refusal('Database byte ceiling must be between 256 MiB and 4 GiB.')
+        if (type(self.database_reserve_bytes) is not int
+                or not 1024**3 <= self.database_reserve_bytes <= 100 * 1024**3):
+            raise Refusal('Database filesystem reserve must be between 1 and 100 GiB.')
+        self.db = sqlite3.connect(self.database_path, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript('''
           PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;
@@ -157,14 +187,30 @@ class Application:
           CREATE TABLE IF NOT EXISTS controls (
             operation_id TEXT PRIMARY KEY, child_id TEXT NOT NULL, digest TEXT NOT NULL,
             payload TEXT NOT NULL, state TEXT NOT NULL, result TEXT);
+          CREATE TABLE IF NOT EXISTS admin_operations (
+            operation_id TEXT PRIMARY KEY, child_id TEXT NOT NULL, digest TEXT NOT NULL,
+            payload TEXT NOT NULL, state TEXT NOT NULL, result TEXT);
         ''')
+        page_size = self.db.execute('PRAGMA page_size').fetchone()[0]
+        self.db.execute('PRAGMA max_page_count=' + str(self.database_max_bytes // page_size))
+        self.db.execute('PRAGMA journal_size_limit=' + str(min(64 * 1024**2, self.database_max_bytes // 8)))
+        self.db.execute('PRAGMA wal_autocheckpoint=1000')
+        self.administration = administration or Administration(
+            config.get('administration'), self.children, self.lifecycle,
+            secret_values=tuple(self.tokens))
         self.escalations = Escalations(self)
         if recover_interrupted:
             # After a proven exclusive service restart, interrupted attempts are
-            # unknown. Runtime enqueue dedupes an explicit same-ID retry.
+            # unknown. First remove only attested backup helpers, restore the
+            # exact managed child to running state, and release a surviving
+            # quiesce lease. Runtime enqueue dedupes an explicit same-ID retry.
+            interrupted_admin = self.db.execute(
+                "SELECT child_id,payload FROM admin_operations WHERE state='executing'").fetchall()
+            self.administration.recover_interrupted(interrupted_admin)
             with self.db:
                 self.db.execute("UPDATE requests SET delivery='unknown' WHERE delivery='delivering'")
                 self.db.execute("UPDATE controls SET state='unknown' WHERE state='executing'")
+                self.db.execute("UPDATE admin_operations SET state='unknown' WHERE state='executing'")
 
     def authenticate(self, authorization):
         if not isinstance(authorization, str) or not authorization.startswith('Bearer '):
@@ -174,6 +220,25 @@ class Application:
             if hmac.compare_digest(token, candidate):
                 return principal
         raise Refusal('Authentication required.', 401, 'unauthorized')
+
+    def storage_gate(self, emergency=False):
+        # Reserve for the worst admitted batch of bounded requests so concurrent
+        # writers cannot race the file ceiling after individually passing. A
+        # smaller reserved tier keeps containment controls available under
+        # ingestion pressure without ever crossing the hard storage boundary.
+        headroom = (8 if emergency else 64) * MAX_BODY
+        paths = [self.database_path, *[Path(str(self.database_path) + suffix)
+                                      for suffix in ('-wal', '-shm', '-journal')]]
+        try:
+            used = sum(path.stat().st_size for path in paths if path.exists())
+            free = shutil.disk_usage(self.database_path.parent).free
+        except OSError:
+            raise Refusal('Control storage capacity is unknown; writes are blocked.',
+                          507, 'storage_blocked') from None
+        if (used + headroom > self.database_max_bytes
+                or free - headroom < self.database_reserve_bytes):
+            raise Refusal('Control storage quota or filesystem reserve blocks new writes.',
+                          507, 'storage_blocked')
 
     def child_scope(self, principal, child_id, role=None):
         identifier(child_id)
@@ -342,6 +407,10 @@ class Application:
             if principal['role'] != 'operator' or self.operators[principal['id']].get('allow_recovery') is not True:
                 raise Refusal('Exceptional recovery requires a separately scoped operator.', 403, 'forbidden')
             text(payload['operator_recovery_reference'], 6000)
+        if self.administration.enabled:
+            if child_id not in self.administration.manifests:
+                raise Refusal('Child is outside the parent administrative allowlist.', 403, 'forbidden')
+            self.administration.lifecycle_gate(child_id, child, payload['action'])
         stored = {**payload, 'principal': principal, 'child_id': child_id}
         fingerprint = digest(stored)
         with self.child_locks[child_id]:
@@ -382,7 +451,18 @@ class Application:
         if not isinstance(payload, dict):
             raise Refusal('Expected a JSON object.')
         parsed = urlsplit(target)
-        path, query = parsed.path, parse_qs(parsed.query)
+        path, query = parsed.path, parse_qs(parsed.query, keep_blank_values=True)
+        if method == 'POST':
+            emergency = (principal['role'] in ('parent', 'operator')
+                         and (re.fullmatch(
+                                  r'/v1/children/[A-Za-z0-9][A-Za-z0-9._-]{0,79}/control',
+                                  path) is not None
+                              or (re.fullmatch(
+                                      r'/v1/children/[A-Za-z0-9][A-Za-z0-9._-]{0,79}/admin/operations',
+                                      path) is not None
+                                  and payload.get('action') == 'resource-profile')))
+            with self.lock:
+                self.storage_gate(emergency=emergency)
         if path == '/v1/escalations' or '/escalations' in path:
             if query:
                 raise Refusal('Escalation routes do not accept query overrides.')
@@ -391,7 +471,8 @@ class Application:
             if principal['role'] != 'parent':
                 raise Refusal('Only a parent lists its children.', 403, 'forbidden')
             return {'adapter': 'explicit-container-parent.v1', 'children': [
-                {'child_id': cid, 'parent_id': child['parent_id'], 'scope': child.get('scope', {}), 'backend': 'tmux'}
+                {'child_id': cid, 'parent_id': child['parent_id'], 'scope': child.get('scope', {}), 'backend': 'tmux',
+                 'administration': cid in self.administration.manifests}
                 for cid, child in self.children.items() if child['parent_id'] == principal['id']]}
         if method == 'GET' and path == '/v1/reports':
             if principal['role'] != 'parent':
@@ -440,6 +521,34 @@ class Application:
                 status = getattr(error, 'status', 400)
                 raise Refusal('Read-only data request was refused.', status if type(status) is int and 400 <= status <= 599 else 400,
                               code if isinstance(code, str) and re.fullmatch(r'[A-Za-z0-9_-]+', code) else 'data_refused') from None
+        admin = re.fullmatch(
+            r'/v1/children/([A-Za-z0-9][A-Za-z0-9._-]{0,79})/admin/'
+            r'(diagnostics|logs|backups|operations|operations/([0-9a-f-]{36})|runbooks/([A-Za-z0-9][A-Za-z0-9._-]{0,63}))',
+            path)
+        if admin:
+            child_id, action, operation_id, runbook = admin.groups()
+            child = self.child_scope(principal, child_id)
+            if not self.administration.enabled:
+                raise Refusal('Scoped administration is not configured.', 404, 'not_found')
+            self.administration.authorize(principal, child_id, child)
+            if action != 'logs' and query:
+                raise Refusal('Administrative endpoint does not accept query overrides.')
+            if method == 'GET' and action == 'diagnostics':
+                return self.administration.diagnostics(principal, child_id, child)
+            if method == 'GET' and action == 'logs':
+                return self.administration.logs(principal, child_id, child, query)
+            if method == 'GET' and action == 'backups':
+                return self.administration.backups(principal, child_id, child)
+            if method == 'GET' and operation_id:
+                return self.administration.operation_status(
+                    principal, child_id, child, operation_id, self.db, self.lock)
+            if method == 'GET' and runbook:
+                return self.administration.runbook(principal, child_id, child, runbook)
+            if method == 'POST' and action == 'operations':
+                return self.administration.operation(
+                    principal, child_id, child, payload, self.db, self.lock,
+                    self.child_locks[child_id])
+            raise Refusal('Method is unavailable for this administrative endpoint.', 405, 'method_not_allowed')
         match = re.fullmatch(r'/v1/children/([A-Za-z0-9][A-Za-z0-9._-]{0,79})/(status|control|requests|requests/retry|reports|proposals|approvals|brain)', path)
         if not match:
             raise Refusal('Unknown control endpoint.', 404, 'not_found')
@@ -494,6 +603,9 @@ class Application:
                     self.db.execute('INSERT OR IGNORE INTO brains VALUES (?,?,?,?)', (child_id, payload['revision'], canonical(payload).decode(), time.time()))
                 return {'revision': payload['revision'], 'published': True}
             if method == 'GET':
+                if principal['role'] not in ('child', 'parent'):
+                    raise Refusal('Brain snapshots are available only to the child or its owning parent.',
+                                  403, 'forbidden')
                 with self.lock:
                     row = self.db.execute('SELECT payload FROM brains WHERE child_id=? ORDER BY created DESC,rowid DESC LIMIT 1', (child_id,)).fetchone()
                 if not row:
@@ -516,6 +628,36 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def parse_request(self):
+        try:
+            return super().parse_request()
+        finally:
+            # BaseHTTPRequestHandler reads the request line before parse_request;
+            # the server's absolute deadline covers both and is cancelled only
+            # after header parsing finishes or fails.
+            self.server.finish_framing(self.connection)
+
+    def read_body(self, length):
+        if length == 0:
+            return b''
+        completed = threading.Event()
+
+        def expire():
+            if not completed.is_set():
+                try:
+                    self.connection.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+
+        timer = threading.Timer(40, expire)
+        timer.daemon = True
+        timer.start()
+        try:
+            return self.rfile.read(length)
+        finally:
+            completed.set()
+            timer.cancel()
+
     def dispatch(self):
         try:
             self.connection.settimeout(40)
@@ -527,7 +669,7 @@ class Handler(BaseHTTPRequestHandler):
                 length = int(self.headers.get('Content-Length', '-1'))
                 if not 0 <= length <= MAX_BODY:
                     raise Refusal('Invalid request body length.', 413, 'too_large')
-                raw = self.rfile.read(length)
+                raw = self.read_body(length)
                 if len(raw) != length:
                     raise Refusal('Incomplete JSON body.')
                 payload = json.loads(raw)
@@ -541,6 +683,122 @@ class Handler(BaseHTTPRequestHandler):
 
     do_GET = dispatch
     do_POST = dispatch
+
+
+class BoundedThreadingHTTPServer(ThreadingHTTPServer):
+    """A small fixed admission boundary around host-root request threads."""
+
+    daemon_threads = True
+    block_on_close = True
+    request_queue_size = 32
+
+    def __init__(self, address, handler, *, max_workers=16, max_workers_per_ip=4,
+                 header_timeout=10):
+        if type(max_workers) is not int or not 4 <= max_workers <= 32:
+            raise Refusal('HTTP worker bound must be between 4 and 32.')
+        if (type(max_workers_per_ip) is not int or not 1 <= max_workers_per_ip <= 8
+                or max_workers_per_ip > max_workers):
+            raise Refusal('Per-IP HTTP worker bound must be between 1 and 8 and not exceed the global bound.')
+        if type(header_timeout) is not int or not 2 <= header_timeout <= 20:
+            raise Refusal('HTTP framing timeout must be between 2 and 20 seconds.')
+        self._worker_slots = threading.BoundedSemaphore(max_workers)
+        self._peer_lock = threading.Lock()
+        self._peer_counts = {}
+        self.max_workers_per_ip = max_workers_per_ip
+        self.header_timeout = header_timeout
+        self.ssl_context = None
+        self._framing_lock = threading.Lock()
+        self._framing_timers = {}
+        super().__init__(address, handler)
+
+    def get_request(self):
+        request, address = super().get_request()
+        if self.ssl_context is not None:
+            request = self.ssl_context.wrap_socket(
+                request, server_side=True, do_handshake_on_connect=False)
+        return request, address
+
+    def process_request(self, request, client_address):
+        admitted = self._worker_slots.acquire(blocking=False)
+        peer = client_address[0]
+        if admitted:
+            with self._peer_lock:
+                count = self._peer_counts.get(peer, 0)
+                if count >= self.max_workers_per_ip:
+                    admitted = False
+                else:
+                    self._peer_counts[peer] = count + 1
+            if not admitted:
+                self._worker_slots.release()
+        if not admitted:
+            try:
+                request.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            self.close_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._release_worker(peer)
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._release_worker(client_address[0])
+
+    def _release_worker(self, peer):
+        with self._peer_lock:
+            count = self._peer_counts.get(peer, 0)
+            if count <= 1:
+                self._peer_counts.pop(peer, None)
+            else:
+                self._peer_counts[peer] = count - 1
+        self._worker_slots.release()
+
+    def finish_request(self, request, client_address):
+        request.settimeout(self.header_timeout)
+        self.start_framing(request)
+        try:
+            if isinstance(request, ssl.SSLSocket):
+                request.do_handshake()
+            super().finish_request(request, client_address)
+        finally:
+            self.finish_framing(request)
+
+    def start_framing(self, request):
+        key = id(request)
+
+        def expire():
+            with self._framing_lock:
+                active = self._framing_timers.pop(key, None)
+            if active is not None:
+                try:
+                    request.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+
+        timer = threading.Timer(self.header_timeout, expire)
+        timer.daemon = True
+        with self._framing_lock:
+            self._framing_timers[key] = timer
+        try:
+            timer.start()
+        except BaseException:
+            with self._framing_lock:
+                self._framing_timers.pop(key, None)
+            raise
+
+    def finish_framing(self, request):
+        with self._framing_lock:
+            timer = self._framing_timers.pop(id(request), None)
+        if timer is not None:
+            timer.cancel()
+
+    def handle_error(self, request, client_address):
+        pass  # Never print request, TLS or peer diagnostics from this root service.
 
 
 def main():
@@ -573,14 +831,44 @@ def main():
             raise Refusal('Another control service owns this state directory.') from None
     application = Application(config, tokens, data_service=data_service, recover_interrupted=not args.check)
     host, port = config.get('listen_host', '127.0.0.1'), config.get('listen_port', 8787)
-    if host not in ('127.0.0.1', '::1') and not config.get('tls_cert_file') and config.get('allow_private_http') is not True:
-        raise Refusal('Non-loopback HTTP requires TLS or explicit private-network configuration.')
+    max_workers = config.get('max_http_workers', 16)
+    max_workers_per_ip = config.get('max_http_workers_per_ip', 4)
+    header_timeout = config.get('header_timeout_seconds', 10)
+    if type(max_workers) is not int or not 4 <= max_workers <= 32:
+        raise Refusal('HTTP worker bound must be between 4 and 32.')
+    if (type(max_workers_per_ip) is not int or not 1 <= max_workers_per_ip <= 8
+            or max_workers_per_ip > max_workers):
+        raise Refusal('Per-IP HTTP worker bound must be between 1 and 8 and not exceed the global bound.')
+    if type(header_timeout) is not int or not 2 <= header_timeout <= 20:
+        raise Refusal('HTTP framing timeout must be between 2 and 20 seconds.')
+    if not isinstance(host, str) or host == '::1':
+        raise Refusal('Use 127.0.0.1 or an explicit IPv4 bridge address; this listener is IPv4-only.')
+    if not config.get('tls_cert_file') and host != '127.0.0.1':
+        try:
+            address = ipaddress.IPv4Address(host)
+        except ipaddress.AddressValueError:
+            raise Refusal('Plain HTTP must bind one concrete RFC1918 IPv4 bridge address.') from None
+        private_networks = (
+            ipaddress.IPv4Network('10.0.0.0/8'),
+            ipaddress.IPv4Network('172.16.0.0/12'),
+            ipaddress.IPv4Network('192.168.0.0/16'),
+        )
+        if (not any(address in network for network in private_networks)
+                or config.get('allow_private_http') is not True):
+            raise Refusal('Plain HTTP requires an explicit RFC1918 bridge address and opt-in.')
     if args.check:
         print(json.dumps({'configuration': 'valid', 'adapter': 'explicit-container-parent.v1',
                           'children': list(application.children), 'data_access': bool(data_service),
+                          'administrative_children': sorted(application.administration.manifests),
+                          'max_http_workers': max_workers,
+                          'max_http_workers_per_ip': max_workers_per_ip,
+                          'header_timeout_seconds': header_timeout,
                           'runtime_probes_performed': False, 'automatic_import': False}))
         return
-    server = ThreadingHTTPServer((host, port), Handler)
+    server = BoundedThreadingHTTPServer(
+        (host, port), Handler,
+        max_workers=max_workers, max_workers_per_ip=max_workers_per_ip,
+        header_timeout=header_timeout)
     server.application = application
     if config.get('tls_cert_file'):
         private_file(config['tls_cert_file'])
@@ -588,7 +876,7 @@ def main():
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.minimum_version = ssl.TLSVersion.TLSv1_2
         context.load_cert_chain(config['tls_cert_file'], config['tls_key_file'])
-        server.socket = context.wrap_socket(server.socket, server_side=True)
+        server.ssl_context = context
     server.serve_forever()
 
 

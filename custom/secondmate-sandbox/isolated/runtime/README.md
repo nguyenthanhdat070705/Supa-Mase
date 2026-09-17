@@ -1,7 +1,7 @@
 # Isolated persistent child runtime
 
-This runtime keeps the existing independent Linux Docker/tmux secondmate and a
-durable Linux mailbox for the user's separately installed Windows firstmate.
+This runtime keeps each independent Linux Docker/tmux child and a durable Linux
+mailbox for MacBot in the separate `firstmate` container.
 It accepts scoped parent requests and authorized
 team Telegram messages, reports outcomes upward, and keeps each child's memory
 and work private. The initial instance uses `gpt-5.6-sol` / `xhigh`.
@@ -112,7 +112,7 @@ excluded groups cannot be enrolled. Registry changes are audited and survive
 restart; env group IDs seed the registry once. Revocation is rechecked before
 queued delivery and outbound replies. Earlier ignored messages are not replayed.
 
-## Durable escalation to Windows firstmate
+## Durable escalation to MacBot
 
 When a hard case needs deeper analysis, a decision beyond your scope, or help
 with a genuine blocker, prepare a child-local JSON file containing only
@@ -128,10 +128,10 @@ Reasons are `needs-analysis`, `needs-decision` and `blocked`. This persists an
 immutable case before networking, sends a bound waiting notice to the current
 chat/topic, and parks the source as `waiting_parent`. Finish your turn after the
 command. Do not call `complete` for the parked source. Other work can proceed
-after that turn completes; firstmate's Windows availability does not gate it.
+after that turn completes; MacBot availability does not gate it.
 The bridge retries the same durable case ID against Linux, including after a
-mailbox outage. Never point the child at a Windows address or start firstmate on
-the user's computer. The owner installs the Windows receiver separately.
+mailbox outage. Never point the child at another container directly or try to
+start/control MacBot; the host broker is the only parent transport.
 
 When firstmate replies, a distinct inbox event contains `original_task`,
 `escalation_request` and `parent_response`. Use this event's new `routing.update_id`

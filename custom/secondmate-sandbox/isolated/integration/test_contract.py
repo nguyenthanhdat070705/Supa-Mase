@@ -1,6 +1,5 @@
 """Real loopback HTTP across parent and child modules; no external services."""
 from dataclasses import replace
-from http.server import ThreadingHTTPServer
 import json
 from pathlib import Path
 import sys
@@ -12,7 +11,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / 'parent-control'), str(ROOT / 'runtime')]
-from server import Application, Handler
+from server import Application, BoundedThreadingHTTPServer, Handler
 from client import Client
 from common import Refusal as ParentRefusal
 from local_ops import apply_approval, export_brain, intake_reports
@@ -52,7 +51,9 @@ class ComponentContractTests(unittest.TestCase):
             'c' * 48: {'role': 'child', 'id': 'team-sandbox'},
             'o' * 48: {'role': 'operator', 'id': 'fixture-operator'}},
             executor=self.runtime)
-        self.server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        self.server = BoundedThreadingHTTPServer(
+            ('127.0.0.1', 0), Handler,
+            max_workers=4, max_workers_per_ip=2, header_timeout=5)
         self.server.application = self.app
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()

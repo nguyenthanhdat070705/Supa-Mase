@@ -1,14 +1,17 @@
-# Independent Linux secondmates and a local firstmate
+# Containerized MacBot with two independent Linux bots
 
-Secondmates run independently on Linux. Captain sets up firstmate separately on
-their Windows machine; it receives difficult cases when its local receiver is
-online. The Linux host service is a durable mailbox and data broker, not another
-firstmate agent. Routine child work does not require a running Windows machine.
+The current deployment runs MacBot as container `firstmate` on the Linux host,
+with Fin (`team-sandbox` / `secondmate`) and Toan (`toanmytran-bot`) in separate
+containers. MacBot connects outbound to the root-owned host broker with one
+scoped parent token; it receives no Docker socket or operator token. The broker
+is a durable mailbox, data broker and fixed two-child control boundary, not
+another model agent. A Windows receiver remains a supported portable alternative,
+not the topology deployed by this profile.
 
 The current child uses its own Telegram bot, Codex `gpt-5.6-sol` with `xhigh`
 reasoning, and private working memory. Additional children receive independent
 identities, homes, queues and credentials. This package does not install, move
-or stop captain's firstmate.
+or stop an existing bot during source-only validation.
 
 ## Team workflow
 
@@ -20,7 +23,7 @@ or stop captain's firstmate.
 3. For a difficult case, the child submits a bounded dossier containing the
    question, relevant context, attempted approaches and evidence. It parks only
    that task, tells its original chat that help is pending, and continues other
-   work. The local firstmate pulls the case when online; its correlated answer
+   work. MacBot pulls the case through the scoped broker client; its correlated answer
    resumes the original child task and chat. A case is not permission to run
    arbitrary commands on captain's personal machine.
 4. Instructions and lessons from team members stay in the child's own memory.
@@ -43,12 +46,14 @@ the parent's conversations, credentials or entire private memory.
 | `data-access/` | Structured PostgreSQL reads with a restricted role and per-child table/column policy |
 | `runtime/` | Child Telegram intake, durable work queue, Codex session acknowledgment and parent/data clients |
 | `compose.yml` and `instance.example.json` | Separate child container, home, model, tmux identity and resource limits |
+| `prepare-home-bind.py` | Offline no-follow verification for the exact per-bot home bind used by safe backup |
+| `deployments/toanmytran/` | Separate dormant Compose/identity procedure for the independently trained ToanMyTran bot |
 | `charter-domain.md` | Delegation, data access, local learning and captain approval rules |
 | `git-broker/` and `install-broker.sh` | Host-held GitHub credentials; constrained child pushes and PR creation |
 | `examples/` and `secondmate.env.example` | Sanitized configuration templates; no live credentials |
 | `SOURCE-MANIFEST.json` | Published file hashes and Git executable modes |
 
-Read the [local-firstmate architecture](LOCAL-FIRSTMATE.md),
+Read the [portable receiver alternative](LOCAL-FIRSTMATE.md),
 [reproduction guide](REPRODUCE.md),
 [parent adapter guide](parent-control/README.md),
 [data access guide](data-access/README.md),
@@ -66,10 +71,12 @@ scoped client without receiving a Docker socket. The child receives neither
 parent credentials nor a mount of parent memory. Parent tasks, child reports,
 knowledge proposals and approvals have durable identifiers and strict scopes.
 
-The Windows receiver initiates the connection to Linux. The child never needs
-an inbound port on Windows, and its `parent_url` continues to name the Linux
-mailbox. Offline firstmate cases remain durable. Ambiguous local execution is
-held for reconciliation rather than automatically launched again after reconnect.
+MacBot initiates outbound requests to the Linux host broker through
+`host.docker.internal`; neither child accepts an inbound parent port, and each
+`parent_url` continues to name the broker. Offline parent cases remain durable.
+Ambiguous execution is held for reconciliation rather than automatically
+launched again after reconnect. The optional Windows receiver follows the same
+outbound-only protocol.
 
 Captain identity comes from Telegram's numeric sender ID. Group membership is
 enabled explicitly; the configured excluded company group remains forbidden.
@@ -117,7 +124,7 @@ All source changes go to a dedicated GitHub branch and PR against
 does not deploy it. Reconcile active/uncertain work before upgrading a live child
 and record the deployed source revision after the approved rollout.
 
-Secondmate, its mailbox/data broker and server validation run on Linux. Captain
-owns the separate local firstmate installation and configures its receiver.
-Existing Linux firstmate state is left in place until captain explicitly chooses
-how to migrate or retire it.
+Both children, MacBot, the mailbox/data broker and server validation run on the
+Linux host in separate trust boundaries. MacBot's state stays in its own mounted
+home; broker code/config stays root-owned on the host. Source validation does not
+replace a live container until the reviewed rollout gates are satisfied.

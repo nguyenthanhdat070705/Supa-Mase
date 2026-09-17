@@ -97,29 +97,89 @@ operational project registry must describe `demand-planning-maycha` as direct-PR
 with yolo off; clone that project under the controller through the constrained
 Git origin. Do not import predecessor backlog or primary private memory.
 
-Run the official helper workflow as container UID 1000 with
-`FM_HOME=/home/nguye/provisioner` and current directory at the controller:
+The official helper workflow must run as container UID 1000 with
+`FM_HOME=/home/nguye/provisioner` and current directory at the controller. The
+child path must not preexist before its initial seed. Do not invoke
+`docker compose run`: its service contains the normal nested, secret and runtime
+mounts. First record the reviewed immutable image ID (a `sha256:` ID, never a
+mutable tag) in `PINNED_IMAGE_ID`. Run these exact one-off containers; each has
+only the parent home bind and no network, socket, secret or runtime mount:
 
 ```sh
-bin/fm-brief.sh team-sandbox --secondmate demand-planning-maycha
-# Fill the generated charter brief with this package's charter-domain.md and
-# preserve the official generated scaffold/lifecycle instructions.
-bin/fm-home-seed.sh team-sandbox /home/nguye/team-sandbox demand-planning-maycha
-bin/fm-home-seed.sh validate
+PINNED_IMAGE_ID='sha256:REPLACE_WITH_REVIEWED_IMAGE_ID'
+test "$(docker image inspect --format '{{.Id}}' "$PINNED_IMAGE_ID")" = "$PINNED_IMAGE_ID"
+sudo ./prepare-home-bind.py --deployment-root /home/dat/team-sandbox \
+  --child-id team-sandbox --container secondmate --allow-absent --require-absent
+
+docker run --rm --pull never --network none --read-only --log-driver none \
+  --cap-drop ALL --security-opt no-new-privileges:true --pids-limit 256 \
+  --memory 2g --cpus 1 --user 1000:1000 --env HOME=/home/nguye \
+  --env FM_HOME=/home/nguye/provisioner --tmpfs /tmp:rw,noexec,nosuid,nodev,size=256m \
+  --mount type=bind,source=/home/dat/team-sandbox/home,target=/home/nguye,bind-propagation=rprivate \
+  --workdir /home/nguye/provisioner \
+  --entrypoint /home/nguye/provisioner/bin/fm-brief.sh \
+  "$PINNED_IMAGE_ID" team-sandbox --secondmate demand-planning-maycha
+
+# Fill and review the generated charter brief before continuing.
+sudo ./prepare-home-bind.py --deployment-root /home/dat/team-sandbox \
+  --child-id team-sandbox --container secondmate --allow-absent --require-absent
+docker run --rm --pull never --network none --read-only --log-driver none \
+  --cap-drop ALL --security-opt no-new-privileges:true --pids-limit 256 \
+  --memory 2g --cpus 1 --user 1000:1000 --env HOME=/home/nguye \
+  --env FM_HOME=/home/nguye/provisioner --tmpfs /tmp:rw,noexec,nosuid,nodev,size=256m \
+  --mount type=bind,source=/home/dat/team-sandbox/home,target=/home/nguye,bind-propagation=rprivate \
+  --workdir /home/nguye/provisioner \
+  --entrypoint /home/nguye/provisioner/bin/fm-home-seed.sh \
+  "$PINNED_IMAGE_ID" team-sandbox /home/nguye/team-sandbox demand-planning-maycha
+
+docker run --rm --pull never --network none --read-only --log-driver none \
+  --cap-drop ALL --security-opt no-new-privileges:true --pids-limit 256 \
+  --memory 2g --cpus 1 --user 1000:1000 --env HOME=/home/nguye \
+  --env FM_HOME=/home/nguye/provisioner --tmpfs /tmp:rw,noexec,nosuid,nodev,size=256m \
+  --mount type=bind,source=/home/dat/team-sandbox/home,target=/home/nguye,bind-propagation=rprivate \
+  --workdir /home/nguye/provisioner \
+  --entrypoint /home/nguye/provisioner/bin/fm-home-seed.sh \
+  "$PINNED_IMAGE_ID" validate
 ```
 
-The child path must not preexist before its initial seed. Normal Compose startup
-can create an empty child working directory; seed before normal launch or use a
-one-off container with working directory `/home/nguye/provisioner` and an
-operator shell entrypoint. Do not run the secondmate service entrypoint while
-seeding. Copy `runtime/secondmate-transport.md` into the seeded child's `data/`.
-Keep its `.fm-secondmate-home` marker equal to the configured instance identity.
+Do not run the secondmate service entrypoint while seeding. Copy
+`runtime/secondmate-transport.md` into the seeded child's `data/`.
+Keep its `.fm-secondmate-home` marker equal to the configured instance identity,
+then make the seeded child directory UID:GID 1000:1000 and mode 0700.
 The static provisioner is a seed source only. Before normal startup, use the
 reviewed binding helper in [parent-control/](parent-control/README.md) to record
 the actual firstmate and configure the stock cross-filesystem `route=remote`
 marker. Do not fabricate a local launch record or register this tmux transport
 as a stock Herdr session. The former local provisioner marker lacked the launch
 metadata required by worker teardown and must be migrated during the upgrade.
+
+Before the first untrusted start—or while the exact existing container is fully
+stopped during a reviewed migration—validate every source component without
+following symlinks:
+
+```sh
+# For an existing managed child, keep the broker stopped for the entire
+# stop/check/recreate window so no scoped lifecycle request can race migration.
+sudo systemctl stop firstmate-control.service
+docker inspect --format '{{.State.Status}} {{.State.Running}}' secondmate
+sudo ./prepare-home-bind.py \
+  --deployment-root /home/dat/team-sandbox \
+  --child-id team-sandbox \
+  --container secondmate
+# Immediately create/recreate the reviewed container, re-attest it, then:
+sudo systemctl start firstmate-control.service
+```
+
+Use `--allow-absent` only for a proven first install and `--require-absent` only
+before seeding. For an existing container, omit both. Record the returned
+device/inode evidence and immediately create the reviewed container. The exact
+nested mount makes the child-home path a mountpoint
+while the bot runs, so that bot cannot replace it before a backup helper reuses
+the already-attested source. Any symlink, missing path, wrong owner/mode or
+running/paused/restarting container is a refusal, not a repair instruction.
+Do not restart the broker between the helper check and container recreation.
+For Fin, schedule this only after its request queue is reconciled and a reviewed
+idle window is approved; the helper is not permission to interrupt active work.
 
 ## 4. Independent Codex configuration
 
@@ -148,14 +208,13 @@ hook trust or fabricate readiness files to skip this step.
 
 Follow [parent-control/README.md](parent-control/README.md) to install the trusted
 host service, fixed parent/child registry, scoped credentials and parent client.
-The service remains on Linux; the parent identity represents captain's separately
-installed local firstmate. Use a separate credential for every child. Captain
-connects the portable receiver/client to that local installation with its own
-scoped credential. It receives no Docker socket or unrestricted host shell key.
-Do not install another firstmate agent on Linux or replace captain's local setup.
-The receiver pulls cases when online; normal child work must continue while it
-is offline. Configure report/proposal collection and the captain notification
-path and test actual receipt. See [LOCAL-FIRSTMATE.md](LOCAL-FIRSTMATE.md).
+The service remains root-owned on Linux; the parent identity represents container
+`firstmate`. Install only the public client/config and scoped parent token into
+that container; it receives no Docker socket, operator token or unrestricted
+host shell key. Use a separate credential for every child. Configure
+report/proposal collection and the captain notification path and test actual
+receipt. [LOCAL-FIRSTMATE.md](LOCAL-FIRSTMATE.md) documents the optional portable
+Windows receiver, not this deployment topology.
 
 Follow [data-access/README.md](data-access/README.md) to audit and provision the
 restricted database role. This is an explicit operator step, never a startup
@@ -171,7 +230,8 @@ Keep the existing child's requested Sol/xhigh setting unless captain changes it.
 
 ## 6. Start and verify
 
-Start only the secondmate service with `docker compose up -d secondmate`. The
+After the no-follow home-bind check, start only the secondmate service with
+`docker compose up -d secondmate`. The
 entrypoint starts `team-sandbox:0.0` on tmux socket `secondmate`; it runs no
 primary `fm-up` or primary cron. Its fixed prompt reads the charter and transport
 rules and requests a real agent tool call:
@@ -200,7 +260,7 @@ and confirm captain notification and that it remains unapproved. Exercise
 promotion with an explicit approval for that exact test proposal and claims.
 
 Verify an independent child task completes while a separate escalation waits for
-the offline local firstmate. Then connect the receiver, return one answer, and
+temporarily unavailable MacBot. Then restore the scoped client, return one answer, and
 confirm the correct original task/chat resumes once. Reconnect, cancellation and
 unknown handler outcomes must preserve the no-duplicate and authority boundaries.
 

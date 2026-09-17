@@ -1,9 +1,9 @@
-# Linux control service and portable firstmate client
+# Linux control service and scoped MacBot client
 
-For a user-installed Windows firstmate and independently operating Linux child,
+The deployed parent is container `firstmate` on the same Linux host. It connects
+outbound to this root-owned broker using the scoped client and parent token,
+without a Docker socket. For the optional user-installed Windows alternative,
 see [Offline escalation protocol and portable receiver](OFFLINE-ESCALATIONS.md).
-The Linux host remains the durable mailbox; the local parent connects outbound.
-No local firstmate installation or existing Linux firstmate shutdown is performed.
 
 Production `firstmate` owns each configured child's requests, report inbox,
 policy publication and controlled lifecycle. The trusted host service resolves
@@ -21,8 +21,9 @@ only the authenticated parent's children.
 
 | File | Responsibility |
 | --- | --- |
-| `server.py` | Authenticated API, fixed runtime dispatch, durable request/event/proposal/approval SQLite records |
+| `server.py` | Authenticated API, fixed runtime dispatch, durable request/event/proposal/approval/operation SQLite records |
 | `lifecycle.py` | Existing-container identity/generation checks, runtime quiesce lease, start/stop/restart/resume |
+| `administration.py` | Exact-child attestation, diagnostics, redacted logs, fixed runbooks, resource profiles and capacity-gated state backup |
 | `client.py` | Parent CLI and durable report collector; no Docker dependency |
 | `local_ops.py` | Allowlisted brain export, separate report intake, approved selected-claim promotion |
 | `binding.py` | Offline, locked migration to supported cross-filesystem marker plus explicit actual-parent manifest |
@@ -34,6 +35,15 @@ state directory is root-owned mode 0700. Parent token can control only its own
 children. Child token can report/propose/fetch policy and query its separately
 configured read-only data scope; it cannot list parents, issue parent requests,
 control lifecycle, approve proposals, or apply knowledge.
+
+An optional, separate top-level `administration.children` map is the root-owned
+administrative allowlist. Registration as a normal child does not grant these
+rights. Each administrative entry pins its container name, immutable image ID,
+user, complete mount destinations/read-write flags, deployment labels, exact
+restart policy, start gate, resource profiles, backup paths and runbook names. The live deployment
+should contain only the exact children MacBot is meant to operate. A future
+third child remains outside this surface until a root operator deliberately adds
+a complete manifest.
 
 **Only the separate operator token can create a knowledge approval.** Never
 install that token in firstmate or secondmate. The trusted operator must inspect
@@ -50,6 +60,28 @@ specific host bridge address and TLS certificate/key. An explicitly configured
 trusted private bridge; the default loopback listener cannot be reached from
 agent containers. Do not expose this service publicly. The example IDs are
 synthetic and must be replaced with independently verified numeric identities.
+
+The host-root listener admits at most `max_http_workers` (4–32, default 16)
+concurrent requests and `max_http_workers_per_ip` (1–8, default 4) from one
+container/source address. It applies `header_timeout_seconds` (2–20, default 10)
+before request-line, header, authentication or body handling, and closes excess
+sockets without allocating a thread. The framing limit is an absolute deadline,
+not an idle timeout; POST bodies have a separate absolute 40-second deadline.
+TLS handshakes run inside the same bounded workers. The bundled listener is
+IPv4-only; use `127.0.0.1` or an explicit private bridge address.
+The service unit also caps tasks, resident memory and file descriptors; these
+controls complement the bridge firewall and per-token scope rather than replacing
+them.
+
+Every POST also passes a durable-storage gate. SQLite has a root-configured page
+ceiling (512 MiB by default), bounded WAL checkpoint/journal settings, a 2-GiB
+filesystem reserve, and worst-case admitted-request headroom before another write
+is accepted. Audit rows are never silently deleted. At the cap, new writes return
+`storage_blocked` until reviewed offline archival or capacity work; monitor the
+broker filesystem and keep it separate or quota-controlled in production.
+Bulk intake stops with 128 MiB still reserved. Authenticated lifecycle control
+and fixed resource-profile containment may use a smaller 16-MiB emergency tier;
+even those operations fail closed before the hard byte/reserve boundary.
 
 ## Protocol
 
@@ -77,6 +109,12 @@ not trusted instructions to the parent.
 | `POST /v1/children/ID/brain` | Owning parent | Publish allowlisted versioned snapshot |
 | `GET /v1/children/ID/brain` | That child or owner | Current immutable snapshot |
 | `POST /v1/data/query`, `/v1/data/schema` | Child or owning parent | Delegates to separately configured `data-access` service |
+| `GET /v1/children/ID/admin/diagnostics` | Owning parent or scoped operator | Attested isolation, lifecycle and resource state |
+| `GET /v1/children/ID/admin/logs?tail=N&since_seconds=N` | Owning parent or scoped operator | Bounded, sanitized, non-following diagnostics |
+| `GET /v1/children/ID/admin/runbooks/NAME` | Owning parent or scoped operator | One fixed read-only maintenance runbook |
+| `POST /v1/children/ID/admin/operations` | Owning parent or scoped operator | Idempotent resource-profile change or state backup |
+| `GET /v1/children/ID/admin/operations/UUID` | Owning parent or scoped operator | Durable operation result/unknown state |
+| `GET /v1/children/ID/admin/backups` | Owning parent or scoped operator | Root-held metadata for this child's backups |
 
 Data child credentials supply their own scope and cannot submit `child_id`.
 Parents may name only their configured children, receiving the same limited
@@ -128,14 +166,67 @@ and a matching durable quiesce lease from `control-check`. This closes intake
 delivery while the host rechecks runtime and container identity. Uncertain
 checks refuse. `resume` releases the exact quiesce lease. A stopped container
 uses its `container:SHA256` generation for `start`; an already running one is
-never started again. The service does not create containers.
+never started again. Lifecycle control never creates or replaces a managed bot
+container.
 
 Only a separately configured operator with `allow_recovery: true` may supply
 `operator_recovery_reference` to recover an active or unverified runtime.
 That explicit recovery may interrupt work, but never removes volumes or work.
 The operation journal preserves executing/unknown results instead of blindly
-repeating maintenance. A crash can leave intake quiesced: inspect status and
-use `resume` if no stop/restart completed. There is no autonomous recovery loop.
+repeating maintenance. Ordinary lifecycle operations are not autonomously
+replayed; inspect status and use `resume` if a stop/restart did not complete.
+The narrower backup recovery path is described below.
+
+### Scoped administration
+
+The parent still has no Docker CLI/socket. The trusted host resolves the child
+ID through two independent root-owned maps, inspects the configured name, checks
+the pinned image/user/labels/security/mount/environment/network/log-rotation
+manifest, and then operates only on the resulting immutable container ID. Every
+mutation requires the current runtime generation, an idle/quiesced child, a
+per-child lock and an operation UUID/content hash journal. A crash is recorded
+as `unknown`; it is never blindly replayed. `start_allowed: false` blocks a
+dormant instance such as a bot that has not yet received its independently
+verified Telegram identity.
+
+Logs never follow and are capped by line count, lookback and response bytes.
+Known broker tokens and common API/Telegram/JWT credential forms are redacted;
+control characters are removed. Runbooks are the fixed names `runtime-health`,
+`home-usage` and `processes`; no endpoint accepts shell, argv, host path,
+container, environment or signal input.
+
+Resource changes select one root-configured profile. They do not accept raw
+Docker flags. State backup first obtains the exact quiesce lease and storage
+estimate, stops the attested bot, and starts one temporary helper from the same
+pinned image. The helper has no network, capabilities, writable root or logs. It
+receives read-only only the exact, pre-provisioned child-home bind already pinned
+in the managed bot; its parent-home, Docker secret and runtime mounts are not
+inherited. Administrative manifests refuse ancestor-only, shared or overlapping
+home sources across managed children.
+Its fixed `tar` invocation starts at the configured bot home, names only the
+configured relative `config/`, `data/` or `state/` paths, and does not dereference
+symlinks. It streams the archive to a root-only broker directory; `.codex`, secrets,
+absolute/traversal paths and caller-selected paths are refused. Backup is denied
+before creating a partial file unless the estimated state is within quota and
+free space after staging remains above both the byte reserve and filesystem
+percentage reserve. The helper is removed, the exact bot ID is started and the
+lease is released before a response. After an exclusive broker restart, a bot is
+started only when an exact `executing` backup journal row and matching durable
+marker prove that this operation observed it running and completed the stop.
+Ambiguous, stale or pre-stop markers fail closed and leave a stopped bot stopped
+for offline operator review; a surviving exact lease may still be released when
+the runtime is verified. Only root-recorded, fully attested helpers are removed.
+Archives can contain trainer memory or any data the bot copied into an allowed
+path, so no API exposes their contents and they must remain root-only. With the
+default reserve, backup is intentionally unavailable unless free space remains
+above the larger of 10 GiB or 10% of that filesystem, plus archive headroom. On
+a roughly 197-GB filesystem, the percentage gate is about 19.7 GB.
+
+There is deliberately no HTTP shell, arbitrary exec, secret rotation, mount or
+network change, build/pull/prune, container/data delete, restore, or unreviewed
+image rollout. Restore and destructive recovery remain offline operator actions
+using the separate token/evidence path; this prevents a prompt-injected parent
+from turning two-bot authority into host-root authority.
 
 ## Brain and knowledge schemas
 
@@ -191,11 +282,24 @@ FM_HOME=/home/nguye/firstmate python3 client.py --config /private/client.json se
 FM_HOME=/home/nguye/firstmate python3 client.py --config /private/client.json pull
 FM_HOME=/home/nguye/firstmate python3 client.py --config /private/client.json collect --interval 10
 python3 client.py --config /private/client.json proposals team-sandbox
+FM_HOME=/home/nguye/firstmate python3 client.py --config /private/client.json control team-sandbox restart --expected-generation GENERATION
+python3 client.py --config /private/client.json diagnostics team-sandbox
+python3 client.py --config /private/client.json logs team-sandbox --tail 100 --since-seconds 3600
+python3 client.py --config /private/client.json runbook team-sandbox home-usage
+FM_HOME=/home/nguye/firstmate python3 client.py --config /private/client.json resources team-sandbox standard --expected-generation GENERATION
+FM_HOME=/home/nguye/firstmate python3 client.py --config /private/client.json backup team-sandbox --expected-generation GENERATION
+python3 client.py --config /private/client.json backups team-sandbox
+python3 client.py --config /private/client.json admin-operation team-sandbox OPERATION_UUID
 ```
 
 The `send` command records request bytes before networking. For a retry provide
 its original `--request-id UUID --retry`; the stored body/correlation are reused.
 `--file` remains syntactically required but is not read on retry.
+Lifecycle, resource and backup commands likewise persist their exact UUID and
+request body under `state/parent-control/control-operations/` or
+`admin-operations/` before networking. Re-run lifecycle control with that same
+UUID and exact payload, or query `admin-operation` for an administrative action,
+after a timeout; never submit a blind replacement.
 
 ```sh
 FM_HOME=/home/nguye/firstmate python3 client.py --config /private/client.json publish-brain team-sandbox --skill diagnostic-reasoning --model gpt-5.6-sol --effort xhigh
@@ -212,6 +316,9 @@ This directory contains no installer that mutates a live service. Operator steps
 
 1. Review/test modules; install root-owned host code/config and private token
    files, plus root-owned mode-0700 `/var/lib/firstmate-control`.
+   Install the reviewed `prepare-home-bind.py` at
+   `/usr/local/lib/firstmate-control/prepare-home-bind.py`, root-owned mode 0755,
+   and verify its published hash before each migration.
    Create `/usr/local/lib/firstmate-control/venv` using `python3 -m venv` and
    install the adjacent `data-access/requirements.txt` using that venv's pip.
    The supplied systemd unit uses that same venv interpreter, so the configured
@@ -219,6 +326,26 @@ This directory contains no installer that mutates a live service. Operator steps
    installed modules root-owned and outside agent-writable mounts.
 2. Select a reachable, restricted listener/TLS configuration. Keep all tokens
    distinct. Place only each scoped token in its authorized container.
+   A container reaches `host.docker.internal` only when its Compose service has
+   the Linux `host-gateway` mapping. Bind the broker to the exact reachable
+private bridge address (the example address is illustrative), or use TLS;
+firewall port 8787 from every network except the managed bot networks and
+prove an authenticated request from inside MacBot before enabling operations.
+Without TLS, the listener accepts only one concrete RFC1918 IPv4 address; it
+rejects `0.0.0.0`, public/link-local addresses and hostnames even when private
+HTTP is explicitly enabled. Allow only the exact MacBot, Fin and Toan bridge
+subnets, then prove a fourth unapproved test network is denied.
+   Build each `expected_environment` from the full reviewed Docker
+   `.Config.Env`, including image-level variables such as `PATH`; the example is
+   illustrative and an omitted or additional live variable is intentional
+   identity drift, not something the broker silently accepts.
+   Apply bounded `json-file` rotation (`max-size=10m`, `max-file=3`) to both
+   managed bots before enabling their administrative manifest; existing
+   containers require a reviewed idle-window recreation for this Docker setting.
+   Before that recreation, stop the exact old container and run
+   `prepare-home-bind.py` against the already seeded mode-0700 child directory.
+   Normal Compose uses `create_host_path: false`; never let it synthesize this
+   source, and never derive a backup bind source dynamically from an ancestor.
 3. Stop child service before running `binding.py` against its existing home,
    as that home's existing numeric owner (not a different root/operator UID).
    This preserves the child user's access to the private marker and manifest.
@@ -255,7 +382,8 @@ reply lookup. It does not bypass report, hold, PR, worktree or unlanded-work gat
 
 ## Validation
 
-`python3 -m unittest -v test_control.py test_binding.py test_storage.py test_escalations.py` runs offline tests, including a real
+`python3 -m unittest discover -v` runs all offline tests, including the
+no-follow exact-home preparer and a real
 loopback HTTP parent -> runtime fixture -> child event -> parent inbox roundtrip,
 scope denials, idempotency, unknown delivery, immutable proposals, operator-only
 approvals, selected-claim application, bounded policy export, generation checks,

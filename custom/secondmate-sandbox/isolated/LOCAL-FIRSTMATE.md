@@ -1,5 +1,9 @@
 # Local firstmate with independent Linux secondmates
 
+> Portable alternative only. The active server profile uses Linux container
+> `firstmate` as MacBot with an outbound scoped broker client. Nothing in this
+> document overrides that profile or authorizes a Windows deployment.
+
 ## Chosen operating model
 
 Captain sets up firstmate on their Windows machine. Each secondmate remains a

@@ -17,8 +17,21 @@ fi
 echo "== Unpacking state + secrets into $HERE =="
 tar -C "$HERE" -xzf "$TAR"
 # fix ownership to the container user (UID 1000) so the non-root process can write
-if command -v sudo >/dev/null; then sudo chown -R 1000:1000 "$HERE/state" "$HERE/secrets" || true; fi
+ROOT=()
+if [ "$(id -u)" -ne 0 ]; then
+  command -v sudo >/dev/null || { echo "need root or sudo to set restored ownership"; exit 1; }
+  ROOT=(sudo)
+fi
+"${ROOT[@]}" chown -R 1000:1000 "$HERE/state" "$HERE/secrets"
 chmod -R go-rwx "$HERE/secrets" 2>/dev/null || true
+if [ -f "$HERE/state/firstmate-control/client.json" ]; then
+  "${ROOT[@]}" chown root:root "$HERE/state/firstmate-control/client.json"
+  "${ROOT[@]}" chmod 0444 "$HERE/state/firstmate-control/client.json"
+fi
+if [ -f "$HERE/secrets/firstmate-control/parent.token" ]; then
+  "${ROOT[@]}" chown 1000:1000 "$HERE/secrets/firstmate-control/parent.token"
+  "${ROOT[@]}" chmod 0400 "$HERE/secrets/firstmate-control/parent.token"
+fi
 
 cat <<'EOF'
 

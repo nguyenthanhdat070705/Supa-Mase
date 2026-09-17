@@ -1,9 +1,14 @@
 {
   "version": 1,
-  "listen_host": "127.0.0.1",
+  "listen_host": "172.17.0.1",
   "listen_port": 8787,
-  "allow_private_http": false,
+  "allow_private_http": true,
+  "max_http_workers": 16,
+  "max_http_workers_per_ip": 4,
+  "header_timeout_seconds": 10,
   "database": "/var/lib/firstmate-control/control.sqlite3",
+  "database_max_bytes": 536870912,
+  "database_reserve_bytes": 2147483648,
   "captain_user_id": 123456789,
   "parents": {
     "firstmate": {
@@ -18,13 +23,103 @@
       "exec_user": "1000:1000",
       "scope": {"domain": "finance", "group_ids": []},
       "token_file": "/etc/firstmate-control/child-team-sandbox.token"
+    },
+    "toanmytran-bot": {
+      "parent_id": "firstmate",
+      "container": "toanmytran-bot",
+      "home": "/home/nguye/toanmytran-bot",
+      "exec_user": "1000:1000",
+      "scope": {"domain": "independent-training", "group_ids": []},
+      "token_file": "/etc/firstmate-control/child-toanmytran-bot.token"
     }
   },
   "operators": {
     "captain-operator": {
       "token_file": "/etc/firstmate-control/operator.token",
-      "children": ["team-sandbox"],
+      "children": ["team-sandbox", "toanmytran-bot"],
       "allow_recovery": true
+    }
+  },
+  "administration": {
+    "backup_root": "/var/lib/firstmate-control/backups",
+    "reserve_bytes": 10737418240,
+    "reserve_percent": 10,
+    "max_log_bytes": 262144,
+    "children": {
+      "team-sandbox": {
+        "container": "secondmate",
+        "pinned_image_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "expected_user": "1000:1000",
+        "expected_mounts": [
+          {"source": "/home/dat/team-sandbox/home", "destination": "/home/nguye", "rw": true, "type": "bind"},
+          {"source": "/home/dat/team-sandbox/home/team-sandbox", "destination": "/home/nguye/team-sandbox", "rw": true, "type": "bind"},
+          {"source": "/home/dat/team-sandbox/runtime", "destination": "/opt/secondmate", "rw": false, "type": "bind"},
+          {"source": "/home/dat/team-sandbox/instance.json", "destination": "/opt/secondmate/instance.json", "rw": false, "type": "bind"},
+          {"source": "/home/dat/team-sandbox/data-access/data_client.py", "destination": "/opt/secondmate/data_client.py", "rw": false, "type": "bind"},
+          {"source": "/home/dat/team-sandbox/secrets/bot-token", "destination": "/run/secrets/secondmate-bot-token", "rw": false, "type": "bind"},
+          {"source": "/home/dat/team-sandbox/secrets/control-token", "destination": "/run/secrets/secondmate-control-token", "rw": false, "type": "bind"}
+        ],
+        "expected_labels": {"com.docker.compose.project": "team-sandbox", "com.docker.compose.service": "secondmate"},
+        "expected_environment": {
+          "HOME": "/home/nguye",
+          "SM_INSTANCE_FILE": "/opt/secondmate/instance.json",
+          "SM_CAPTAIN_ID": "123456789",
+          "SM_TEAM_GROUP_IDS": "-1001234567890",
+          "SM_FORBIDDEN_BOT_ID": "987654321",
+          "SM_BOT_TOKEN_FILE": "/run/secrets/secondmate-bot-token",
+          "DEBIAN_FRONTEND": "noninteractive",
+          "TZ": "Asia/Ho_Chi_Minh",
+          "PATH": "/opt/codex/bin:/home/nguye/.local/bin:/usr/local/bin:/usr/bin:/bin"
+        },
+        "expected_networks": {"team-sandbox_default": "1111111111111111111111111111111111111111111111111111111111111111"},
+        "expected_log_config": {"max-size": "10m", "max-file": "3"},
+        "expected_restart_policy": "unless-stopped",
+        "start_allowed": true,
+        "resource_profiles": {
+          "standard": {"memory_bytes": 6442450944, "nano_cpus": 3000000000, "pids_limit": 512},
+          "reduced": {"memory_bytes": 4294967296, "nano_cpus": 2000000000, "pids_limit": 512}
+        },
+        "backup_paths": ["config", "data", "state"],
+        "max_backup_bytes": 2147483648,
+        "runbooks": ["runtime-health", "home-usage", "processes"]
+      },
+      "toanmytran-bot": {
+        "container": "toanmytran-bot",
+        "pinned_image_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "expected_user": "1000:1000",
+        "expected_mounts": [
+          {"source": "/home/dat/toanmytran/home", "destination": "/home/nguye", "rw": true, "type": "bind"},
+          {"source": "/home/dat/toanmytran/home/toanmytran-bot", "destination": "/home/nguye/toanmytran-bot", "rw": true, "type": "bind"},
+          {"source": "/home/dat/toanmytran/runtime", "destination": "/opt/secondmate", "rw": false, "type": "bind"},
+          {"source": "/home/dat/toanmytran/instance.json", "destination": "/opt/secondmate/instance.json", "rw": false, "type": "bind"},
+          {"source": "/home/dat/toanmytran/data-access/data_client.py", "destination": "/opt/secondmate/data_client.py", "rw": false, "type": "bind"},
+          {"source": "/home/dat/toanmytran/secrets/bot-token", "destination": "/run/secrets/secondmate-bot-token", "rw": false, "type": "bind"},
+          {"source": "/home/dat/toanmytran/secrets/control-token", "destination": "/run/secrets/secondmate-control-token", "rw": false, "type": "bind"}
+        ],
+        "expected_labels": {"com.docker.compose.project": "toanmytran", "com.docker.compose.service": "secondmate"},
+        "expected_environment": {
+          "HOME": "/home/nguye",
+          "SM_INSTANCE_FILE": "/opt/secondmate/instance.json",
+          "SM_CAPTAIN_ID": "123456789",
+          "SM_TEAM_GROUP_IDS": "",
+          "SM_FORBIDDEN_BOT_ID": "987654321",
+          "SM_BOT_TOKEN_FILE": "/run/secrets/secondmate-bot-token",
+          "DEBIAN_FRONTEND": "noninteractive",
+          "TZ": "Asia/Ho_Chi_Minh",
+          "PATH": "/opt/codex/bin:/home/nguye/.local/bin:/usr/local/bin:/usr/bin:/bin"
+        },
+        "expected_networks": {"toanmytran_default": "2222222222222222222222222222222222222222222222222222222222222222"},
+        "expected_log_config": {"max-size": "10m", "max-file": "3"},
+        "expected_restart_policy": "no",
+        "start_allowed": false,
+        "resource_profiles": {
+          "standard": {"memory_bytes": 4294967296, "nano_cpus": 2000000000, "pids_limit": 512},
+          "reduced": {"memory_bytes": 3221225472, "nano_cpus": 1500000000, "pids_limit": 384}
+        },
+        "backup_paths": ["config", "data", "state"],
+        "max_backup_bytes": 2147483648,
+        "runbooks": ["runtime-health", "home-usage", "processes"]
+      }
     }
   }
 }

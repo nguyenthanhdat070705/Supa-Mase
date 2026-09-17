@@ -1,0 +1,8 @@
+# Runtime state and credentials never belong in source control.
+state/
+secrets/
+.env
+
+# Migration bundles can contain full agent state and credentials.
+firstmate-migration-*.tar.gz
+firstmate-migration-*.tar.gz.gpg

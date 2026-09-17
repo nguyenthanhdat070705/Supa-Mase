@@ -1,4 +1,7 @@
-# Linux child, Windows firstmate, durable advisory mailbox
+# Optional portable Windows receiver and durable advisory mailbox
+
+> Alternative topology only. The active two-bot server profile uses container
+> `firstmate` as MacBot with the same outbound protocol and no Docker socket.
 
 The Linux child handles normal team work independently. Difficult cases are
 stored locally before submission to the Linux host mailbox. The Windows
