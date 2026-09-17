@@ -1,15 +1,15 @@
-name: team-sandbox
+name: toanmytran
 
 services:
   secondmate:
     build:
       context: ./runtime
     image: secondmate:local
-    container_name: secondmate
+    container_name: toanmytran-bot
     user: "1000:1000"
-    hostname: secondmate
+    hostname: toanmytran-bot
     entrypoint: ["/bin/bash", "/opt/secondmate/entrypoint.sh"]
-    restart: unless-stopped
+    restart: "no"
     init: true
     tty: true
     stdin_open: true
@@ -28,11 +28,9 @@ services:
         target: /home/nguye
         bind:
           create_host_path: false
-      # Exact nested mount pins the bot-home inode while the container exists.
-      # Normal startup must never auto-create or follow a replacement source.
       - type: bind
-        source: ./home/team-sandbox
-        target: /home/nguye/team-sandbox
+        source: ./home/toanmytran-bot
+        target: /home/nguye/toanmytran-bot
         bind:
           create_host_path: false
       - type: bind
@@ -68,8 +66,8 @@ services:
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     pids_limit: 512
-    mem_limit: 6g
-    cpus: 3
+    mem_limit: 4g
+    cpus: 2
     logging:
       driver: json-file
       options:
@@ -77,5 +75,3 @@ services:
         max-file: "3"
     tmpfs:
       - /tmp:mode=1777,size=512m
-    # No host socket, no firstmate state, no shared credential/history mounts.
-    # home/ contains only the provisioner, seeded secondmate and separate auth copy.

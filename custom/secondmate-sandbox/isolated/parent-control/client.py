@@ -43,12 +43,12 @@ class Client:
         context = ssl.create_default_context(cafile=config.get('ca_file'))
         self.opener = build_opener(NoRedirect(), HTTPSHandler(context=context))
 
-    def call(self, method, path, payload=None):
+    def call(self, method, path, payload=None, *, timeout=45):
         request = Request(self.url + path, method=method,
                           data=canonical(payload) if payload is not None else None,
                           headers={'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json'})
         try:
-            with self.opener.open(request, timeout=45) as response:
+            with self.opener.open(request, timeout=timeout) as response:
                 content = response.read(MAX_BODY * 4 + 1)
         except HTTPError as error:
             # Server errors contain only fixed diagnostics; never echo raw HTTP bodies.
@@ -127,6 +127,17 @@ def main():
     control = sub.add_parser('control'); control.add_argument('child'); control.add_argument('action', choices=['start', 'stop', 'restart', 'resume'])
     control.add_argument('--expected-generation', required=True); control.add_argument('--operation-id')
     control.add_argument('--operator-recovery-reference')
+    diagnostics = sub.add_parser('diagnostics'); diagnostics.add_argument('child')
+    logs = sub.add_parser('logs'); logs.add_argument('child'); logs.add_argument('--tail', type=int, default=100)
+    logs.add_argument('--since-seconds', type=int, default=3600)
+    runbook = sub.add_parser('runbook'); runbook.add_argument('child')
+    runbook.add_argument('name', choices=['runtime-health', 'home-usage', 'processes'])
+    backups = sub.add_parser('backups'); backups.add_argument('child')
+    resources = sub.add_parser('resources'); resources.add_argument('child'); resources.add_argument('profile')
+    resources.add_argument('--expected-generation', required=True); resources.add_argument('--operation-id')
+    backup = sub.add_parser('backup'); backup.add_argument('child')
+    backup.add_argument('--expected-generation', required=True); backup.add_argument('--operation-id')
+    operation = sub.add_parser('admin-operation'); operation.add_argument('child'); operation.add_argument('operation_id')
     args = parser.parse_args()
     os.umask(0o077)
     config_path = Path(args.config)
@@ -191,11 +202,71 @@ def main():
         receipt = apply_approval(args.home, response['approval'], client.parent_id)
         result = client.call('POST', '/v1/approvals/' + approval_id + '/receipt', receipt)
     elif args.command == 'control':
-        payload = {'operation_id': args.operation_id or str(uuid.uuid4()), 'action': args.action,
+        if not args.home:
+            raise Refusal('FM_HOME is required to persist a lifecycle operation before sending.')
+        operation_id = uuid_id(args.operation_id) if args.operation_id else str(uuid.uuid4())
+        payload = {'operation_id': operation_id, 'action': args.action,
                    'expected_generation': args.expected_generation}
         if args.operator_recovery_reference:
             payload['operator_recovery_reference'] = args.operator_recovery_reference
-        result = client.call('POST', route + '/control', payload)
+        home = home_path(args.home)
+        record = confined(home, 'state/parent-control/control-operations/' + operation_id + '.json', True)
+        if record.exists():
+            try:
+                saved_payload = json.loads(record.read_text())
+            except (OSError, ValueError, UnicodeError):
+                raise Refusal('Local lifecycle operation record is unreadable; inspect it before retry.') from None
+            if saved_payload != payload:
+                raise Refusal('Local lifecycle operation ID already has different content.')
+        else:
+            atomic(record, canonical(payload) + b'\n')
+        try:
+            result = client.call('POST', route + '/control', payload, timeout=90)
+        except Refusal as error:
+            raise Refusal(str(error) + ' Durable operation ' + operation_id + ' is stored at ' + str(record) + '.',
+                          error.status, error.code) from None
+        result['durable_operation'] = str(record)
+    elif args.command == 'diagnostics':
+        result = client.call('GET', route + '/admin/diagnostics')
+    elif args.command == 'logs':
+        if not 1 <= args.tail <= 500 or not 0 <= args.since_seconds <= 86400:
+            raise Refusal('Log bounds exceed the administrative limit.')
+        query = urlencode({'tail': args.tail, 'since_seconds': args.since_seconds})
+        result = client.call('GET', route + '/admin/logs?' + query)
+    elif args.command == 'runbook':
+        result = client.call('GET', route + '/admin/runbooks/' + args.name)
+    elif args.command == 'backups':
+        result = client.call('GET', route + '/admin/backups')
+    elif args.command in ('resources', 'backup'):
+        if not args.home:
+            raise Refusal('FM_HOME is required to persist an administrative operation before sending.')
+        operation_id = uuid_id(args.operation_id) if args.operation_id else str(uuid.uuid4())
+        payload = {
+            'operation_id': operation_id,
+            'action': 'resource-profile' if args.command == 'resources' else 'backup',
+            'expected_generation': args.expected_generation,
+            'parameters': {'profile': args.profile} if args.command == 'resources' else {},
+        }
+        home = home_path(args.home)
+        record = confined(home, 'state/parent-control/admin-operations/' + operation_id + '.json', True)
+        if record.exists():
+            try:
+                saved_payload = json.loads(record.read_text())
+            except (OSError, ValueError, UnicodeError):
+                raise Refusal('Local administrative operation record is unreadable; inspect it before retry.') from None
+            if saved_payload != payload:
+                raise Refusal('Local administrative operation ID already has different content.')
+        else:
+            atomic(record, canonical(payload) + b'\n')
+        try:
+            result = client.call('POST', route + '/admin/operations', payload,
+                                 timeout=360 if args.command == 'backup' else 60)
+        except Refusal as error:
+            raise Refusal(str(error) + ' Durable operation ' + operation_id + ' is stored at ' + str(record) + '.',
+                          error.status, error.code) from None
+        result['durable_operation'] = str(record)
+    elif args.command == 'admin-operation':
+        result = client.call('GET', route + '/admin/operations/' + uuid_id(args.operation_id))
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

@@ -1,7 +1,6 @@
 """Offline unit + real loopback HTTP roundtrip tests. No Docker/Telegram/DB network."""
 import copy
 import hashlib
-from http.server import ThreadingHTTPServer
 import json
 from pathlib import Path
 import subprocess
@@ -11,7 +10,7 @@ import unittest
 import uuid
 
 from common import Refusal, canonical, digest, validate_brain
-from server import Application, Handler, DockerExecutor
+from server import Application, BoundedThreadingHTTPServer, Handler, DockerExecutor
 from client import Client
 from lifecycle import Lifecycle
 from local_ops import apply_approval, export_brain, intake_reports
@@ -233,7 +232,9 @@ class ControlTests(unittest.TestCase):
         self.assertEqual(calls[-1], ('team-sandbox', {}))
 
     def test_http_parent_child_roundtrip_real_socket(self):
-        http = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        http = BoundedThreadingHTTPServer(
+            ('127.0.0.1', 0), Handler, max_workers=4,
+            max_workers_per_ip=2, header_timeout=2)
         http.application = self.app
         thread = threading.Thread(target=http.serve_forever, daemon=True); thread.start()
         def client(token):

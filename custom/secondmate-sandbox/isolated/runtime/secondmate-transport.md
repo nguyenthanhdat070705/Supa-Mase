@@ -1,8 +1,8 @@
 # Persistent child transport and parent control
 
-This agent runs independently on Linux and escalates to the user's separately
-installed Windows firstmate through a durable Linux mailbox. Windows may be
-offline; routine team work continues. Its read-only instance configuration pins the child,
+This agent runs independently on Linux and escalates to MacBot in the separate
+`firstmate` container through a durable Linux mailbox. MacBot may be temporarily
+unavailable; routine team work continues. Its read-only instance configuration pins the child,
 actual parent, own home, bot and launch model. `data/parent-control-binding.json`
 records that adapter binding; the official `.fm-secondmate-parent` marker uses
 `route=remote` because parent and child filesystems are separate. Stock child
@@ -84,10 +84,10 @@ Reasons are `needs-analysis`, `needs-decision` and `blocked`. This persists an
 immutable case before networking, sends a bound waiting notice to the current
 chat/topic, and parks the source as `waiting_parent`. Finish your turn after the
 command. Do not call `complete` for the parked source. Other work can proceed
-after that turn completes; firstmate's Windows availability does not gate it.
+after that turn completes; MacBot availability does not gate it.
 The bridge retries the same durable case ID against Linux, including after a
-mailbox outage. Never point the child at a Windows address or start firstmate on
-the user's computer. The owner installs the Windows receiver separately.
+mailbox outage. Never point the child directly at another container or try to
+start/control MacBot; use only the authenticated host broker.
 
 When firstmate replies, a distinct inbox event contains `original_task`,
 `escalation_request` and `parent_response`. Use this event's new `routing.update_id`

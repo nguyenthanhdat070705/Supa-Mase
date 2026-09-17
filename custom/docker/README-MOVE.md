@@ -70,6 +70,44 @@ docker compose restart firstmate                     # khởi động lại (sta
 docker exec -it firstmate ~/firstmate/data/dp-morning-robot/run.sh --boot   # chạy bù số sáng
 ```
 
+Container MacBot không được mount `/var/run/docker.sock`. Compose chỉ thêm
+`host.docker.internal:host-gateway` để client có thể gọi broker quản trị giới
+hạn trên host; broker phải bind vào đúng địa chỉ bridge riêng, được firewall chỉ
+cho các network bot. Container chạy non-root, bỏ toàn bộ Linux capabilities,
+bật `no-new-privileges`, giới hạn PID và xoay log `10m x 3`. Sau khi recreate,
+xác minh từ trong container rằng socket Docker không tồn tại và một request có
+token tới broker hoạt động; không chép operator token vào MacBot.
+
+Đo RAM/CPU thật của host rồi tạo `.env` mode 0600 với hai giá trị bắt buộc
+`FIRSTMATE_MEMORY_LIMIT` và `FIRSTMATE_CPUS`. Chọn chúng sao cho tổng trần của
+MacBot (ví dụ cú pháp `8g`, `4.0`), Fin (6 GiB/3 CPU), Toan (4 GiB/2 CPU), broker
+và phần dự phòng hệ điều hành không vượt tài nguyên vật lý. Compose đặt
+`memswap_limit` bằng `mem_limit`; không được bỏ biến để MacBot chạy không giới
+hạn. Con số ví dụ không phải khuyến nghị cho host chưa đo.
+
+Trước khi `docker compose up`, cài mã broker đã merge dưới
+`/usr/local/lib/firstmate-control/parent-control` với owner root và không cho
+agent ghi. Tạo `state/firstmate-control/client.json` từ
+`parent-client.example.json` (root-owned, 0444) và đặt **chỉ parent token** tại
+`secrets/firstmate-control/parent.token` (UID 1000, mode 0400). Ba bind đều
+read-only và `create_host_path: false`, nên thiếu file/path sẽ làm deployment
+fail closed. Không đặt operator token trong cây `custom/docker`.
+
+Sau khi broker và đúng hai manifest đã được kích hoạt, kiểm tra từ MacBot:
+
+```sh
+docker exec --user 1000:1000 firstmate sh -lc '
+  test ! -S /var/run/docker.sock && test ! -S /run/docker.sock &&
+  FM_HOME=/home/nguye/firstmate python3 /opt/firstmate-control-client/client.py \
+    --config /etc/firstmate-control/client.json list'
+```
+
+Kết quả phải chỉ có `team-sandbox` và `toanmytran-bot`, cả hai mang cờ
+`administration: true`. Tiếp theo chạy `diagnostics` cho từng ID; không dùng
+`control`, `resources` hay `backup` làm smoke test. Cờ `administration: true`
+chỉ cho biết bot nằm trong allowlist quản trị; Toan vẫn không được khởi động khi
+`start_allowed: false`.
+
 Telegram bridge chạy sẵn trong container → bạn vẫn chỉ huy qua điện thoại như cũ.
 Cập nhật khung: `docker exec -it firstmate bash -lc 'cd ~/firstmate && bin/fm-update.sh'`.
 

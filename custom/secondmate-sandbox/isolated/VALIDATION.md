@@ -1,4 +1,70 @@
-# Validation record — 2026-09-15
+# Validation records
+
+## Two-bot administration candidate — 2026-09-17
+
+This candidate adds a root-owned, exact-two-child administration boundary for
+MacBot (`firstmate`) over Fin (`team-sandbox` / `secondmate`) and Toan
+(`toanmytran-bot`). MacBot receives a scoped parent client and token, never the
+Docker socket or operator token. Toan remains dormant. Tests used synthetic
+tokens and identities; the Telegram credential disclosed in chat was not written
+to the worktree and must be rotated outside chat before use.
+
+### Automated checks
+
+| Suite | Result | Environment |
+| --- | ---: | --- |
+| Parent control, administration, listener, storage and binding | 108 run: 106 passed, 2 skipped | Windows Python 3.12 |
+| Parent control, administration, listener, storage and binding | 108 run: 107 passed, 1 skipped | WSL/Linux Python 3.10 |
+| Child runtime and delivery | 75 passed in each environment | Windows and WSL/Linux |
+| Data compiler/service/client | 30 run in each: 26 passed, 4 disposable-PostgreSQL skips | Windows and WSL/Linux |
+| Constrained Git broker | 17 run: 15 passed, 2 root-only skips | WSL/Linux |
+| Parent/child component contracts | 5 passed | WSL/Linux, real loopback HTTP |
+
+Across both supported test environments, 448 tests ran: 435 passed and 13 were
+explicitly skipped, with no failures. Static validation compiled 37 Python
+files, parsed 12 JSON files, checked three
+relevant shell scripts with Linux `bash -n`, rendered all three Compose projects
+(MacBot, Fin and Toan), and passed `git diff --check`. The Windows integration
+fixture is not authoritative because the production schema deliberately requires
+absolute POSIX child homes; the same five contracts passed under WSL/Linux.
+
+The administration tests cover exact operator/parent scope, denial for a third
+registered child, pinned image/user/environment/labels/networks/mounts/restart
+policy, private bind propagation, `AutoRemove=false`, no socket/host namespaces,
+dormant-network lookup, bounded/redacted logs, fixed non-shell runbooks, durable
+idempotent resource operations, serialized capacity-gated backups, exact nested
+home binds, helper attestation, crash markers, restart verification and
+marker-owned lease recovery. Listener tests cover global/per-IP admission, TLS
+handshake placement, absolute header/body deadlines, slot cleanup, IPv4-only
+operation and RFC1918-only plain HTTP. Storage tests cover SQLite/WAL/journal
+ceilings and soft/emergency/hard write gates.
+
+### Live rollout gates
+
+This validation does **not** claim live activation. The read-only server preflight
+found the broker registration scoped to exactly Fin and Toan and no Docker socket
+in MacBot or either child, but these gates remain:
+
+- Fin still has unresolved/uncertain work and an unverified runtime readiness
+  state. Do not stop or recreate it until the queue is reconciled and an approved
+  idle window exists. Its reviewed recreation must add bounded logs and the exact
+  nested child-home bind before administrative attestation is enabled.
+- Toan must remain `restart: "no"` and `start_allowed: false`. Revoke the token
+  disclosed in chat, provision a fresh token directly into a UID-1000 mode-0400
+  secret file, verify it resolves to `ToanMyTran_bot`, and review its independent
+  trainer charter/captain identity. Activation then uses one broker-stopped,
+  reviewed transition to `unless-stopped` plus a matching manifest/start gate.
+- The root filesystem had about 7.2 GB free. Backup requires the larger of
+  10 GiB or 10% of the filesystem (about 19.7 GB here), plus archive headroom,
+  so backup is intentionally unavailable. No Docker prune or deletion is
+  authorized by this candidate.
+- Measure host RAM/CPU before setting MacBot's required resource-cap variables.
+  Firewall broker port 8787 to only the exact MacBot, Fin and Toan bridge
+  networks and prove an unapproved test network is denied.
+- Merge this reviewed PR into `maycha-custom` before installing its artifacts.
+  Publishing or validating the branch does not authorize deployment or merge.
+
+## Baseline validation — 2026-09-15
 
 The candidate was validated in disposable Linux containers on the deployment
 server. Test fixtures contained synthetic identities, tokens and records. No

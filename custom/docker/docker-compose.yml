@@ -1,6 +1,8 @@
 # firstmate on a 24/7 Linux server.
 # State + secrets live in ./state and ./secrets (restored from the migration bundle),
 # mounted into the container so `docker compose down/up` and image rebuilds never lose them.
+name: firstmate
+
 services:
   firstmate:
     build:
@@ -9,9 +11,13 @@ services:
         CODEX_VERSION: "0.154.0"
     image: firstmate:local
     container_name: firstmate
+    user: "1000:1000"
     restart: unless-stopped
+    init: true
     tty: true              # keep a TTY so the tmux-hosted agents behave like the WSL setup
     stdin_open: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       TZ: Asia/Ho_Chi_Minh
     volumes:
@@ -27,5 +33,34 @@ services:
       - ./state/fm-primary:/home/nguye/.fm-primary          # which agent is the first mate
       - ./state/fm-up:/home/nguye/.local/bin/fm-up          # one-command starter
       - ./state/crontab.container:/home/nguye/crontab.container:ro
-    # Optional: cap memory so a runaway job can't take the whole server (tune to your box).
-    # mem_limit: 12g
+      # Scoped parent client only: root-owned code, public config, parent token.
+      # Never mount the operator token or Docker socket into MacBot.
+      - type: bind
+        source: /usr/local/lib/firstmate-control/parent-control
+        target: /opt/firstmate-control-client
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./state/firstmate-control/client.json
+        target: /etc/firstmate-control/client.json
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./secrets/firstmate-control/parent.token
+        target: /run/secrets/firstmate-control-parent
+        read_only: true
+        bind:
+          create_host_path: false
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 2048
+    mem_limit: ${FIRSTMATE_MEMORY_LIMIT:?set measured FIRSTMATE_MEMORY_LIMIT}
+    memswap_limit: ${FIRSTMATE_MEMORY_LIMIT:?set measured FIRSTMATE_MEMORY_LIMIT}
+    cpus: ${FIRSTMATE_CPUS:?set measured FIRSTMATE_CPUS}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

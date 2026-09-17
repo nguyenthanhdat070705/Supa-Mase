@@ -1,0 +1,15 @@
+{
+  "schema": "secondmate-instance.v1",
+  "child_id": "toanmytran-bot",
+  "parent_id": "firstmate",
+  "fm_home": "/home/nguye/toanmytran-bot",
+  "tmux_socket": "toanmytran",
+  "tmux_target": "toanmytran-bot:0.0",
+  "expected_bot_username": "ToanMyTran_bot",
+  "model": "gpt-5.6-sol",
+  "reasoning_effort": "xhigh",
+  "inherit_model": false,
+  "excluded_group_ids": [],
+  "parent_url": "http://host.docker.internal:8787",
+  "control_token_file": "/run/secrets/secondmate-control-token"
+}
